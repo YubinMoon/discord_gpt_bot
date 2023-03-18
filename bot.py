@@ -39,26 +39,37 @@ async def gpt_request(message: discord.Message):
     except:
         logger.exception("GPT 모델 호출 중 오류 발생")
 
+
 async def gpt_stream(message: discord.Message):
-    msg:discord.Message = None
+    msg: discord.Message = None
     try:
+        # 초기값 설정
         text = ""
+        now = time.time()
+
         async with message.channel.typing():
-            now = time.time()
+            # GPT-3에 대한 요청
             async for r in gpt.stream_request(message.content):
                 if r:
-                    text+=r
-                    if time.time()-now > 1:
-                        if msg:
-                            now = time.time()
-                            await msg.edit(content=text)
-                        else:
+                    text += r
+                    # 메시지를 일정 간격으로 업데이트
+                    if time.time() - now > 1:
+                        # 초기 응답 메시지가 없는 경우
+                        if not msg:
                             now = time.time()
                             msg = await message.reply(text)
+                        # 초기 응답 메시지가 있는 경우
+                        else:
+                            now = time.time()
+                            await msg.edit(content=text)
+
+        # 최종 응답 메시지 업데이트
         await msg.edit(content=text)
 
     except:
+        # 오류 발생 시 로그 기록
         logger.exception("GPT STREAM 호출 중 오류 발생")
+
 
 @bot.event
 async def on_ready():
