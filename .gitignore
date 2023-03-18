@@ -1,0 +1,6 @@
+*.log
+setting*
+api*
+token*
+*cache*
+venv
