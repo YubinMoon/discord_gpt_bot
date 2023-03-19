@@ -1,4 +1,5 @@
 import openai
+import openai.error
 import json
 import time
 import logging
@@ -181,13 +182,24 @@ class GPT:
         messages = self.make_new_messages(
             new_message_text, system_text, past_messages)
 
-        # OpenAI의 API를 사용해 새로운 메시지를 생성
-        result = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo',
-            stream=True,
-            messages=messages
-        )
-
+        num_retries = 0
+        while num_retries < 1:
+            try:
+                # OpenAI의 API를 사용해 새로운 메시지를 생성
+                result = openai.ChatCompletion.create(
+                    model='gpt-3.5-turbo',
+                    stream=True,
+                    messages=messages
+                )
+            except openai.error.APIConnectionError:
+                self.logger.exception("APIConnectionError 발생")
+                num_retries += 1
+                continue
+            else:
+                break
+        else:
+            self.logger.error("API 연결에 실패하여 종료합니다.")
+            return
         # 대화 내용을 담을 리스트 생성
         collected_messages = []
 
