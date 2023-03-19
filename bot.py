@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import discord
+import discord.errors
 from discord.ext import commands
 
 from gpt import GPT
@@ -51,17 +52,21 @@ async def gpt_stream(message: discord.Message):
             # GPT-3에 대한 요청
             async for r in gpt.stream_request(message.content):
                 if r:
-                    text += r
-                    # 메시지를 일정 간격으로 업데이트
-                    if time.time() - now > 1:
-                        # 초기 응답 메시지가 없는 경우
-                        if not msg:
-                            now = time.time()
-                            msg = await message.reply(text)
-                        # 초기 응답 메시지가 있는 경우
-                        else:
-                            now = time.time()
-                            await msg.edit(content=text)
+                    try:
+                        text += r
+                        # 메시지를 일정 간격으로 업데이트
+                        if time.time() - now > 1:
+                            # 초기 응답 메시지가 없는 경우
+                            if not msg:
+                                now = time.time()
+                                msg = await message.reply(text)
+                            # 초기 응답 메시지가 있는 경우
+                            else:
+                                now = time.time()
+                                await msg.edit(content=text)
+                    except discord.errors.HTTPException:
+                        logger.exception("전송 중 오류 발생")
+                        logger.exception(text)
 
         # 최종 응답 메시지 업데이트
         await msg.edit(content=text)
@@ -94,6 +99,12 @@ async def on_message(message: discord.Message):
     # GPT 채팅방인 경우 GPT 모델에게 메시지 전달
     if "gpt" in message.channel.name:
         await gpt_stream(message)
+
+
+@bot.command(name="ask")
+async def adk(ctx: commands.Context, *, arg:str):
+    ctx.message.content = arg
+    await gpt_stream(ctx.message)
 
 
 @bot.command(name="clear")
