@@ -12,7 +12,7 @@ from gpt import GPT
 LOG_FILENAME = 'log.log'
 
 # 로그 레벨 설정
-logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG,
+logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO,
                     datefmt="%Y-%m-%d %H%M%S", encoding="utf-8", format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s")
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ async def gpt_request(message: discord.Message):
 
 
 async def gpt_stream(message: discord.Message):
+    logger.info(f"name: {message.author.nick} - request: {message.content}")
     msg: discord.Message = None
     try:
         # 초기값 설정
@@ -51,13 +52,13 @@ async def gpt_stream(message: discord.Message):
         async with message.channel.typing():
             # GPT-3에 대한 요청
             async for r in gpt.stream_request(message.content):
-                if r:
+                text += r
+                if len(text) > 3:
                     try:
-                        text += r
                         # 메시지를 일정 간격으로 업데이트
                         if time.time() - now > 1:
                             # 초기 응답 메시지가 없는 경우
-                            if not msg:
+                            if not msg or not msg.content:
                                 now = time.time()
                                 msg = await message.reply(text)
                             # 초기 응답 메시지가 있는 경우
@@ -68,8 +69,8 @@ async def gpt_stream(message: discord.Message):
                         logger.exception("전송 중 오류 발생")
                         logger.exception(text)
 
-        # 최종 응답 메시지 업데이트
-        await msg.edit(content=text)
+            # 최종 응답 메시지 업데이트
+            await msg.edit(content=text)
 
     except:
         # 오류 발생 시 로그 기록
@@ -102,7 +103,7 @@ async def on_message(message: discord.Message):
 
 
 @bot.command(name="ask")
-async def adk(ctx: commands.Context, *, arg:str):
+async def adk(ctx: commands.Context, *, arg: str):
     ctx.message.content = arg
     await gpt_stream(ctx.message)
 

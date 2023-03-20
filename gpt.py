@@ -5,7 +5,7 @@ import time
 import logging
 import tiktoken
 import os
-
+import asyncio
 
 class GPT:
     def __init__(self):
@@ -183,7 +183,7 @@ class GPT:
             new_message_text, system_text, past_messages)
 
         num_retries = 0
-        while num_retries < 1:
+        while num_retries < 10:
             try:
                 # OpenAI의 API를 사용해 새로운 메시지를 생성
                 result = openai.ChatCompletion.create(
@@ -193,6 +193,8 @@ class GPT:
                 )
             except openai.error.APIConnectionError:
                 self.logger.exception("APIConnectionError 발생")
+                await asyncio.sleep(1)
+                self.logger.info(f"요청 재시도 - {num_retries}")
                 num_retries += 1
                 continue
             else:
