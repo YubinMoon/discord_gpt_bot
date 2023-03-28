@@ -12,8 +12,8 @@ from gpt import GPT
 LOG_FILENAME = 'log.log'
 
 # 로그 레벨 설정
-logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO,
-                    datefmt="%Y-%m-%d %H%M%S", encoding="utf-8", format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s")
+logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG,
+                    datefmt="%Y-%m-%d %H:%M:%S", encoding="utf-8", format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s")
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ async def adk(ctx: commands.Context, *, arg: str):
 @bot.command(name="clear")
 async def clear_history(ctx: discord.Message):
     # GPT 모델의 기억 삭제
-    await gpt.clear_history()
+    gpt.clear_history()
     await ctx.channel.send("기억이 초기화되었습니다.")
     return None
 
@@ -149,6 +149,7 @@ async def glo_config(ctx: discord.Message, *args):
             await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
         else:
             gpt.gloSetting[key] = value
+            gpt.load_setting()
             await ctx.channel.send(f"```{key}: {value}```")
     else:
         await ctx.channel.send("```!gconfig [설정명] [설정값]``` 형태로 입력해주세요.")
@@ -156,7 +157,7 @@ async def glo_config(ctx: discord.Message, *args):
 
 
 @bot.command(name="role")
-async def role_config(ctx: discord.Message, *args):
+async def role_config(ctx: commands.Context, *args):
     try:
         if not args:
             # 역할 정보 초기화
