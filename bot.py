@@ -43,38 +43,31 @@ async def gpt_request(message: discord.Message):
 
 async def gpt_stream(message: discord.Message):
     logger.info(f"name: {message.author.nick} - request: {message.content}")
-    msg: discord.Message = None
     try:
         # 초기값 설정
         text = ""
-        now = time.time()
+        now = 0
 
-        async with message.channel.typing():
-            # GPT-3에 대한 요청
-            async for r in gpt.stream_request(message.content):
-                text += r
-                if len(text) > 3:
-                    try:
-                        # 메시지를 일정 간격으로 업데이트
-                        if time.time() - now > 1:
-                            # 초기 응답 메시지가 없는 경우
-                            if not msg or not msg.content:
-                                now = time.time()
-                                msg = await message.reply(text)
-                            # 초기 응답 메시지가 있는 경우
-                            else:
-                                now = time.time()
-                                await msg.edit(content=text)
-                    except discord.errors.HTTPException:
-                        logger.exception("전송 중 오류 발생")
-                        logger.exception(text)
+        msg: discord.Message = await message.reply("대답 중...")
+        async for r in gpt.stream_request(message.content):
+            text += r
+            if len(text) > 1:
+                try:
+                    # 메시지를 일정 간격으로 업데이트
+                    if time.time() - now > 1:
+                        now = time.time()
+                        await msg.edit(content=text)
+                except discord.errors.HTTPException:
+                    logger.exception("전송 중 오류 발생")
+                    logger.exception(text)
 
-            # 최종 응답 메시지 업데이트
-            await msg.edit(content=text)
+        # 최종 응답 메시지 업데이트
+        await msg.edit(content=text)
 
     except:
         # 오류 발생 시 로그 기록
         logger.exception("GPT STREAM 호출 중 오류 발생")
+        await message.reply("GPT가 파업을 선언했어요...")
 
 
 @bot.event
@@ -173,4 +166,13 @@ async def role_config(ctx: commands.Context, *args):
         logger.exception("역할 설정 중 오류 발생")
         return None
 
+@bot.command(name="history")
+async def show_history(ctx: commands.Context):
+    try:
+        if gpt.history:
+            await ctx.channel.send(f"```{json.dumps(gpt.history, indent=2, ensure_ascii=False)}```")
+        else:
+            await ctx.channel.send("기록이 없어요. \n대화를 시작해 볼까요?")
+    except:
+        await ctx.channel.send("기록이 너무 길어 출력이 어려워요...")
 bot.run(TOKEN)

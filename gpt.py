@@ -23,20 +23,27 @@ class GPT:
                 open(self.setting_file, "r", encoding="utf-8"))
         self.model = self.gloSetting.get("model", "gpt-4-0314")
         self.system_text = self.gloSetting.get("system_text", "")
-        self.max_token = self.gloSetting.get("max_token", 2000)
-        self.temperature = self.gloSetting.get("temperature", 1)
-        self.keep_min = self.gloSetting.get("keep_min", 10)
+        self.max_token = self.gloSetting.get("max_token", "2000")
+        self.temperature = self.gloSetting.get("temperature", "1")
+        self.top_p = self.gloSetting.get("top_p", "1")
+        self.keep_min = self.gloSetting.get("keep_min", "10")
         self.gloSetting = {
             "model": self.model,
             "system_text": self.system_text,
             "max_token": self.max_token,
             "temperature": self.temperature,
+            "top_p": self.top_p,
             "keep_min": self.keep_min,
         }
         self.clear_history()
-        
+
         json.dump(self.gloSetting, open(
             self.setting_file, "w", encoding="utf-8"), indent=4)
+
+        self.max_token = int(self.max_token)
+        self.temperature = float(self.temperature)
+        self.top_p = float(self.top_p)
+        self.keep_min = int(self.keep_min)
 
     def make_line(self, content: str, role: str = "user"):
         return {"role": role, "content": content}
@@ -136,6 +143,7 @@ class GPT:
             model=self.model,
             messages=message,
             temperature=self.temperature,
+            top_p=self.top_p,
         )
         response = result.choices[0].message.content
 
@@ -172,35 +180,27 @@ class GPT:
         return result
 
     async def stream_completion(self, messages: list):
-        num_retries = 0
-        while num_retries < 10:
-            try:
-                # OpenAI의 API를 사용해 새로운 메시지를 생성
-                result = openai.ChatCompletion.create(
-                    model=self.model,
-                    stream=True,
-                    messages=messages,
-                    temperature=self.temperature,
-                )
-            except openai.error.APIConnectionError:
-                self.logger.exception("APIConnectionError 발생")
-                await asyncio.sleep(1)
-                self.logger.info(f"요청 재시도 - {num_retries}")
-                num_retries += 1
-                continue
-            except openai.error.RateLimitError:
-                self.logger.exception("GPT API 과부하")
-                if num_retries == 0:
-                    yield "현제 GPT API가 과부하 상태에 있습니다. 잠시만 기다려 주세요\n"
-                await asyncio.sleep(5)
-                num_retries += 1
-                continue
-            except:
-                self.logger.error("API 연결에 실패하여 종료합니다.")
-            else:
-                break
-        else:
-            self.logger.error("API 연결에 실패하여 종료합니다.")
+        try:
+            # OpenAI의 API를 사용해 새로운 메시지를 생성
+            result = openai.ChatCompletion.create(
+                model=self.model,
+                stream=True,
+                messages=messages,
+                temperature=self.temperature,
+                top_p=self.top_p,
+            )
+        except openai.error.APIConnectionError:
+            yield "API 연결 실패"
+            self.logger.exception(f"APIConnectionError 발생")
+        except openai.error.RateLimitError:
+            yield "API 과부하"
+            self.logger.exception(f"RateLimitError 발생")
+        except openai.error.InvalidRequestError:
+            yield "설정 오류"
+            self.logger.exception(f"InvalidRequestError 발생")
+        except:
+            yield "API 에러"
+            self.logger.exception("API ERROR")
             raise openai.error.APIConnectionError("연결 실페~")
 
         # 생성된 메시지를 루프 돌며 처리
@@ -230,7 +230,7 @@ class GPT:
         # 전체 대화 내용을 생성
         full_reply_content = ''.join([m for m in collected_messages])
         self.logger.info(f"request: {full_reply_content}")
-        
+
         # 기록에 반영
         self.history.append(self.make_line(role="user", content=_message))
         self.history.append(self.make_line(
