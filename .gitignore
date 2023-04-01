@@ -4,3 +4,5 @@ api*
 token*
 *cache*
 venv
+test*
+img

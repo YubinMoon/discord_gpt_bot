@@ -6,6 +6,9 @@ import logging
 import tiktoken
 import os
 import asyncio
+import aiohttp
+import datetime
+import io
 
 
 class GPT:
@@ -14,36 +17,44 @@ class GPT:
         self.gloSetting = {}
         self.logger = logging.getLogger(__name__)
         self.lastRequestTime = time.time()
+        self.session = aiohttp.ClientSession()
         openai.api_key_path = "api_openai"
         self.load_setting()
+        # 토큰을 파일에서 불러옴
+        with open("./api_openai", "r") as fp:
+            openai.api_key = fp.readline()
+        if not os.path.isdir("./img"):
+            os.mkdir('img')
 
     def load_setting(self):
-        if not self.gloSetting and os.path.isfile(self.setting_file):
-            self.gloSetting = json.load(
-                open(self.setting_file, "r", encoding="utf-8"))
-        self.model = self.gloSetting.get("model", "gpt-4-0314")
-        self.system_text = self.gloSetting.get("system_text", "")
-        self.max_token = self.gloSetting.get("max_token", "2000")
-        self.temperature = self.gloSetting.get("temperature", "1")
-        self.top_p = self.gloSetting.get("top_p", "1")
-        self.keep_min = self.gloSetting.get("keep_min", "10")
-        self.gloSetting = {
-            "model": self.model,
-            "system_text": self.system_text,
-            "max_token": self.max_token,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
-            "keep_min": self.keep_min,
+        default_settings = {
+            "model": "gpt-4-0314",
+            "system_text": "",
+            "max_token": 2000,
+            "temperature": 1.0,
+            "top_p": 1.0,
+            "keep_min": 10,
         }
+        if os.path.isfile(self.setting_file):
+            with open(self.setting_file, "r", encoding="utf-8") as file:
+                loaded_settings = json.load(file)
+                self.gloSetting = {**default_settings, **loaded_settings}
+        else:
+            self.gloSetting = default_settings
+
         self.clear_history()
+        self.save_setting()
 
-        json.dump(self.gloSetting, open(
-            self.setting_file, "w", encoding="utf-8"), indent=4)
+    def save_setting(self):
+        with open(self.setting_file, "w", encoding="utf-8") as file:
+            json.dump(self.gloSetting, file, indent=4)
 
-        self.max_token = int(self.max_token)
-        self.temperature = float(self.temperature)
-        self.top_p = float(self.top_p)
-        self.keep_min = int(self.keep_min)
+        self.model = self.gloSetting["model"]
+        self.system_text = self.gloSetting["system_text"]
+        self.max_token = int(self.gloSetting["max_token"])
+        self.temperature = float(self.gloSetting["temperature"])
+        self.top_p = float(self.gloSetting["top_p"])
+        self.keep_min = int(self.gloSetting["keep_min"])
 
     def make_line(self, content: str, role: str = "user"):
         return {"role": role, "content": content}
@@ -124,7 +135,7 @@ class GPT:
 
         return message
 
-    def completion(self, message: list):
+    async def chat_completion(self, message: list):
         """
         OpenAI API를 사용하여 새 메시지를 생성하고 반환합니다.
 
@@ -138,18 +149,22 @@ class GPT:
             past_messages (list): 토큰 수가 제한된 이전 메시지 리스트
         """
 
-        # OpenAI API를 사용하여 답변을 생성합니다.
-        result = openai.ChatCompletion.create(
-            model=self.model,
-            messages=message,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
-        response = result.choices[0].message.content
-
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {openai.api_key}"
+        }
+        data = {
+            "model": self.model,
+            "messages": message,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+        }
+        async with self.session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as resp:
+            result = await resp.json()
+            response = result["choices"][0]["message"]["content"]
         return response
 
-    def glo_request(self, _message):
+    async def chat_request(self, _message):
         """
         GLO 시스템에 요청을 보내고, 답변을 반환합니다.
 
@@ -167,7 +182,7 @@ class GPT:
 
         # API 호출
         self.logger.info(f"message: {messages}")
-        result = self.completion(messages)
+        result = await self.chat_completion(messages)
 
         # 기록에 반영
         self.history.append(self.make_line(role="user", content=_message))
@@ -179,39 +194,46 @@ class GPT:
         # 생성된 답변 메시지를 반환합니다.
         return result
 
-    async def stream_completion(self, messages: list):
+    async def stream_chat_completion(self, messages: list):
         try:
-            # OpenAI의 API를 사용해 새로운 메시지를 생성
-            result = openai.ChatCompletion.create(
-                model=self.model,
-                stream=True,
-                messages=messages,
-                temperature=self.temperature,
-                top_p=self.top_p,
-            )
-        except openai.error.APIConnectionError:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {openai.api_key}"
+            }
+            data = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "stream": True,
+            }
+            async with self.session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data) as response:
+                # 스트림의 응답을 처리합니다.
+                async for chunk in response.content.iter_chunks():
+                    # 두 줄로 나눕니다.
+                    response_data = chunk[0].decode("utf-8").split("\n\n")
+                    for data in response_data:
+                        if data.startswith("data: "):
+                            data = data[6:]  # "data: "를 제거합니다.
+                            # JSON을 딕셔너리로 변환합니다.
+                            data_dict = json.loads(data)
+                            # 출력이 끝나면 함수 종료
+                            if data_dict["choices"][0]["finish_reason"] == "stop":
+                                return
+                            # 생성된 메시지의 내용을 가져와서 저장
+                            response = data_dict["choices"][0]["delta"].get(
+                                "content", "")
+                            yield response
+
+        except aiohttp.ClientConnectionError:
             yield "API 연결 실패"
-            self.logger.exception(f"APIConnectionError 발생")
-        except openai.error.RateLimitError:
-            yield "API 과부하"
-            self.logger.exception(f"RateLimitError 발생")
-        except openai.error.InvalidRequestError:
-            yield "설정 오류"
-            self.logger.exception(f"InvalidRequestError 발생")
-        except:
+        except aiohttp.ClientResponseError:
+            yield "API 응답 오류"
+        except Exception as e:
             yield "API 에러"
-            self.logger.exception("API ERROR")
-            raise openai.error.APIConnectionError("연결 실페~")
+            raise openai.error.APIConnectionError("연결 실패") from e
 
-        # 생성된 메시지를 루프 돌며 처리
-        for chunk in result:
-            # 생성된 메시지의 내용을 가져와서 저장
-            chunk_message = chunk['choices'][0]['delta'].get("content", "")
-            # 처리된 메시지를 리스트에 추가하고 반환
-            yield chunk_message
-        return
-
-    async def stream_request(self, _message):
+    async def stream_chat_request(self, _message):
         self.is_timeout()
 
         # 현재 메시지와 이전 대화 내용을 합쳐서 새 메시지 리스트 생성
@@ -223,7 +245,7 @@ class GPT:
 
         # stream_completion() 메서드를 통해 실시간 채팅을 진행하며, 결과를 yield로 반환한다.
         self.logger.info(f"message: {messages}")
-        async for result in self.stream_completion(messages):
+        async for result in self.stream_chat_completion(messages):
             collected_messages.append(result)
             yield result
 
@@ -239,6 +261,32 @@ class GPT:
         # 기록에서 토큰 수를 제한합니다.
         self.control_token()
 
+    async def create_image(self, prompt: str):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {openai.api_key}"
+        }
+        data = {
+            "prompt": prompt,
+            "n": 1,
+            "size": "1024x1024",
+        }
+        async with self.session.post("https://api.openai.com/v1/images/generations", headers=headers, json=data) as resp:
+            if resp.status != 200:
+                print(resp)
+                raise Exception("API 요청 에러")
+            result = await resp.json()
+            url = result["data"][0]["url"]
+        async with self.session.get(url) as response:
+            if response.status == 200:
+                data = await response.read()
+                with open(f"./img/{datetime.datetime.now().strftime('%m%d%H%M%S')}.png", "wb") as f:
+                    f.write(data)
+                image_data = io.BytesIO(data)
+                return image_data
+            else:
+                raise Exception("이미지 다운 에러")
+
     def clear_history(self):
         """
         채팅 기록을 초기화합니다.
@@ -248,8 +296,17 @@ class GPT:
 
     def set_system_text(self, setting):
         self.system_text = setting
-        self.save_setting()
+        self.load_setting()
 
-    def set_temperature(self, temperature):
-        self.temperature = temperature
-        self.save_setting()
+# 사용 예시
+
+
+async def main():
+    gpt = GPT()
+    data = await gpt.create_image("a blue eyes cat")
+    with open("test.png", "wb") as f:
+        f.write(data)
+
+# main 함수를 실행하고 완료되면 이벤트 루프를 종료합니다.
+if __name__ == "__main__":
+    asyncio.run(main())
