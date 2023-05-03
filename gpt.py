@@ -22,7 +22,7 @@ class GPT:
         self.load_setting()
         # 토큰을 파일에서 불러옴
         with open("./api_openai", "r") as fp:
-            openai.api_key = fp.readline()
+            openai.api_key = fp.readline().strip()
         if not os.path.isdir("./img"):
             os.mkdir('img')
 
