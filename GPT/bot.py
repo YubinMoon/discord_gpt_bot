@@ -9,7 +9,7 @@ import discord.errors
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from GPT import GPT
+from gpt import GPT
 
 load_dotenv()
 
@@ -28,7 +28,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=bot_prefix, intents=intents)
 
-gpt = GPT(os.environ["OPENAI_API_KEY"])
+gpt = GPT()
 
 
 def handle_errors(error_message):

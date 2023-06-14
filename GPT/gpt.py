@@ -104,7 +104,7 @@ class GPT:
 
         return result
 
-    async def stream_chat_completion(self, messages: list):
+    async def get_chat_stream_data(self, messages: list):
         try:
             headers = {
                 "Content-Type": "application/json",
@@ -131,7 +131,7 @@ class GPT:
             yield "API 에러"
             raise openai.error.APIConnectionError("연결 실패") from e
 
-    async def stream_chat_request(self, _message):
+    async def get_stream_chat(self, _message):
         self.is_timeout()
 
         # 현재 메시지와 이전 대화 내용을 합쳐서 새 메시지 리스트 생성
@@ -142,7 +142,7 @@ class GPT:
 
         # stream_completion() 메서드를 통해 실시간 채팅을 진행하며, 결과를 yield로 반환한다.
         self.logger.info(f"message: {messages}")
-        async for result in self.stream_chat_completion(messages):
+        async for result in self.get_chat_stream_data(messages):
             collected_messages.append(result)
             yield result
 
