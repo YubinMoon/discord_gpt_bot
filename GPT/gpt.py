@@ -6,10 +6,12 @@ import tiktoken
 import os
 import asyncio
 import aiohttp
+import traceback
 import datetime
 import io
 from dotenv import load_dotenv
 from .setting import Setting
+from .chat import stream_chat_request
 
 
 class GPT:
@@ -115,39 +117,18 @@ class GPT:
                 "top_p": self.setting.top_p,
                 "stream": True,
             }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers=headers,
-                    json=data,
-                ) as response:
-                    # 스트림의 응답을 처리합니다.
-                    async for chunk in response.content.iter_chunks():
-                        # 두 줄로 나눕니다.
-                        response_data = chunk[0].decode("utf-8").split("\n\n")
-                        for data in response_data:
-                            if data.startswith("data: "):
-                                data = data[6:]  # "data: "를 제거합니다.
-                                # JSON을 딕셔너리로 변환합니다.
-                                data_dict = json.loads(data)
-                                # 출력이 끝나면 함수 종료
-                                if data_dict["choices"][0]["finish_reason"] == "stop":
-                                    return
-                                # 생성된 메시지의 내용을 가져와서 저장
-                                response = data_dict["choices"][0]["delta"].get(
-                                    "content", ""
-                                )
-                                yield response
+            async for data in stream_chat_request(headers=headers, data=data):
+                yield data
 
         except aiohttp.ClientConnectionError:
+            self.logger.exception(traceback.print_exc())
             yield "API 연결 실패"
         except aiohttp.ClientResponseError:
+            self.logger.exception(traceback.print_exc())
             yield "API 응답 오류"
         except Exception as e:
+            self.logger.exception(traceback.print_exc())
             yield "API 에러"
-            import traceback
-
-            logging.exception(traceback.print_exc())
             raise openai.error.APIConnectionError("연결 실패") from e
 
     async def stream_chat_request(self, _message):
