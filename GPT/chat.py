@@ -37,6 +37,8 @@ async def get_data_from_chunk(chunk_str: str) -> AsyncIterator[str]:
     for data in response_data:
         if data.startswith("data: "):
             data = data[6:]
+            if data == "[DONE]":
+                return
             data_dict = json.loads(data)
             response = data_dict["choices"][0]
             yield response  # {"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}

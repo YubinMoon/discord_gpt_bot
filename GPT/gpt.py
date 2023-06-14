@@ -8,10 +8,13 @@ import asyncio
 import aiohttp
 import traceback
 import datetime
+import copy
 import io
 from dotenv import load_dotenv
 from .setting import Setting
 from .chat import stream_chat_request
+from .message import MessageLine, MessageBox
+from .token import Tokener
 
 
 class GPT:
@@ -19,42 +22,21 @@ class GPT:
         self.setting = Setting(setting_file)
         self.api_key = api_key
         self.logger = logging.getLogger(__name__)
+        self.message_box = MessageBox()
         self.lastRequestTime = time.time()
         if not os.path.isdir("./img"):
             os.mkdir("img")
         self.clear_history()
 
-    def num_tokens_from_messages(self, messages: list) -> int:
-        try:
-            encoding = tiktoken.encoding_for_model(self.setting.model)
-        except KeyError:
-            encoding = tiktoken.get_encoding("cl100k_base")
-
-        # 이전 메시지 리스트에서 사용된 토큰 수를 계산합니다.
-        num_tokens = 0
-        for message in messages:
-            num_tokens += self.get_token_of_message(encoding, message)
-        num_tokens += 2  # 답변은 <im_start>assistant로 시작함
-
-        return num_tokens
-
-    def get_token_of_message(self, encoding: tiktoken.Encoding, message: dict) -> int:
-        num_tokens = 4  # <im_start>, role/name, \n, content, <im_end>, \n
-        for key, value in message.items():
-            num_tokens += len(encoding.encode(value))
-            if key == "name":  # 이름이 있는 경우, 역할은 필요하지 않음
-                num_tokens += -1  # 역할은 항상 필요하며, 1개의 토큰을 차지함
-        return num_tokens
-
     def control_token(self):
         try:
-            token = self.num_tokens_from_messages(self.history)
+            token = Tokener.num_tokens_from_messages(self.history)
 
             self.logger.info(f"use token: {token}")
             # 토큰 수가 최대값을 초과하면, 최근 2개 이전의 메시지를 제거합니다.
             while token > self.setting.max_token and past_messages:
                 past_messages = past_messages[2:]
-                token = self.num_tokens_from_messages(past_messages)
+                token = Tokener.num_tokens_from_messages(past_messages)
         except:
             self.logger.exception("Error in controlling past messages")
 
@@ -69,40 +51,6 @@ class GPT:
         new_message = self.make_line(content=new_message_text)
         message = message + _past_messages + [new_message]
         return message
-
-    async def chat_completion(self, message: list):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
-        data = {
-            "model": self.setting.model,
-            "messages": message,
-            "temperature": self.setting.temperature,
-            "top_p": self.setting.top_p,
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions", headers=headers, json=data
-            ) as resp:
-                result = await resp.json()
-                response = result["choices"][0]["message"]["content"]
-        return response
-
-    async def chat_request(self, _message):
-        self.is_timeout()
-
-        messages = self.make_messages(_message, self.setting.system_text, self.history)
-
-        self.logger.info(f"message: {messages}")
-        result = await self.chat_completion(messages)
-
-        self.history.append(self.make_line(role="user", content=_message))
-        self.history.append(self.make_line(role="assistant", content=result))
-
-        self.control_token()
-
-        return result
 
     async def get_chat_stream_data(self, messages: list):
         try:
@@ -131,33 +79,30 @@ class GPT:
             yield "API 에러"
             raise openai.error.APIConnectionError("연결 실패") from e
 
-    async def get_stream_chat(self, _message):
+    async def get_stream_chat(self, _message: str):
         self.is_timeout()
 
         # 현재 메시지와 이전 대화 내용을 합쳐서 새 메시지 리스트 생성
-        messages = self.make_messages(_message, self.setting.system_text, self.history)
+        self.message_box.add_message(MessageLine(role="user", content=_message))
+        messages = self.message_box.make_messages(system_text=self.setting.system_text)
 
         # 대화 내용을 담을 리스트 생성
-        collected_messages = []
+        collected_messages = MessageLine()
 
         # stream_completion() 메서드를 통해 실시간 채팅을 진행하며, 결과를 yield로 반환한다.
         self.logger.info(f"message: {messages}")
-        async for result in self.get_chat_stream_data(messages):
-            collected_messages.append(result)
-            yield result
+        async for data in self.get_chat_stream_data(messages):
+            new_message = MessageLine(data=data)
+            collected_messages += new_message
+            yield new_message.content
 
-        # 전체 대화 내용을 생성
-        full_reply_content = "".join([m for m in collected_messages])
-        self.logger.info(f"request: {full_reply_content}")
+        self.logger.info(f"request: {collected_messages}")
 
         # 기록에 반영
-        self.history.append(self.make_line(role="user", content=_message))
-        self.history.append(
-            self.make_line(role="assistant", content=full_reply_content)
-        )
+        self.message_box.add_message(collected_messages)
 
-        # 기록에서 토큰 수를 제한합니다.
-        self.control_token()
+        # # 기록에서 토큰 수를 제한합니다.
+        # self.control_token()
 
     async def create_image(self, prompt: str):
         headers = {
