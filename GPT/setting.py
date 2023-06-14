@@ -16,7 +16,7 @@ class Setting:
         self.setting_value = {
             "model": "gpt-3.5-turbo-0613",
             "system_text": "",
-            "max_token": 4000,
+            "max_token": 3000,
             "temperature": 1.0,
             "top_p": 1.0,
             "keep_min": 10,

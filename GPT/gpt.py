@@ -81,28 +81,18 @@ class GPT:
 
     async def get_stream_chat(self, _message: str):
         self.is_timeout()
-
-        # 현재 메시지와 이전 대화 내용을 합쳐서 새 메시지 리스트 생성
         self.message_box.add_message(MessageLine(role="user", content=_message))
-        messages = self.message_box.make_messages(system_text=self.setting.system_text)
-
-        # 대화 내용을 담을 리스트 생성
-        collected_messages = MessageLine()
-
-        # stream_completion() 메서드를 통해 실시간 채팅을 진행하며, 결과를 yield로 반환한다.
+        messages = self.message_box.make_messages(setting=self.setting)
         self.logger.info(f"message: {messages}")
+
+        collected_messages = MessageLine()
         async for data in self.get_chat_stream_data(messages):
             new_message = MessageLine(data=data)
             collected_messages += new_message
             yield new_message.content
 
         self.logger.info(f"request: {collected_messages}")
-
-        # 기록에 반영
         self.message_box.add_message(collected_messages)
-
-        # # 기록에서 토큰 수를 제한합니다.
-        # self.control_token()
 
     async def create_image(self, prompt: str):
         headers = {
@@ -134,15 +124,9 @@ class GPT:
             else:
                 raise Exception("이미지 다운 에러")
 
-    def make_line(self, content: str, role: str = "user"):
-        return {"role": role, "content": content}
-
     def clear_history(self):
-        """
-        채팅 기록을 초기화합니다.
-        """
         self.logger.info("history cleared")
-        self.history = []
+        self.message_box.clear()
 
     def set_system_text(self, setting):  # TODO 셋팅 변경 추가
         pass
@@ -150,7 +134,6 @@ class GPT:
         # self.load_setting()
 
     def is_timeout(self):
-        # 최근 요청 시간이 10분 이상 지났을 경우, 이전 메시지 리스트를 초기화합니다.
         if time.time() - self.lastRequestTime > self.setting.keep_min * 60:
             self.clear_history()
         self.lastRequestTime = time.time()

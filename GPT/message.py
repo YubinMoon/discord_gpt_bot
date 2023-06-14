@@ -1,5 +1,7 @@
 import logging
 import copy
+from .token import Tokener
+from .setting import Setting
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +66,26 @@ class MessageBox:
     def add_message(self, message: MessageLine):
         self.messaes.append(message)
 
-    def make_messages(self, system_text: str | None = None) -> list[dict[str, str]]:
+    def make_messages(self, setting: Setting | None = None) -> list[dict[str, str]]:
         messages = []
-        if system_text:
-            messages = [[MessageLine(role="system", content=system_text)]]
-        return messages + [message.make_message() for message in self.messaes]
+        if not setting:
+            return [message.make_message() for message in self.messaes]
+
+        if setting.system_text:
+            messages = [[MessageLine(role="system", content=setting.system_text)]]
+        while setting.max_token < Tokener.num_tokens_from_messages(
+            messages=self.convert_messages(messages=[*messages, *self.messaes]),
+            model=setting.model,
+        ):
+            self.messaes = self.messaes[1:]
+        messages += self.messaes
+        return self.convert_messages(messages)
+
+    def convert_messages(self, messages: list[MessageLine]) -> list[dict[str, str]]:
+        return [message.make_message() for message in messages]
+
+    def clear(self):
+        self.messaes.clear()
 
     def __len__(self):
         return len(self.messaes)
