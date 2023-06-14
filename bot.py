@@ -4,16 +4,16 @@ import time
 import os
 import logging
 import discord
+import traceback
 import discord.errors
 from discord.ext import commands
 from dotenv import load_dotenv
 
 from gpt import GPT
 
-# 로그 파일 경로 설정
-LOG_FILENAME = "log.log"
+load_dotenv()
 
-# 로그 레벨 설정
+LOG_FILENAME = "log.log"
 logging.basicConfig(
     filename=LOG_FILENAME,
     level=logging.DEBUG,
@@ -21,31 +21,27 @@ logging.basicConfig(
     encoding="utf-8",
     format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s",
 )
-
 logger = logging.getLogger(__name__)
 
-# 디스코드 봇 설정
-prefix = "!"
+bot_prefix = "!"
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix=prefix, intents=intents)
+bot = commands.Bot(command_prefix=bot_prefix, intents=intents)
 
-# 토큰을 파일에서 불러옴
-load_dotenv()
-TOKEN = os.environ.get("DISCORD_TOKEN")
+gpt = GPT()
 
 
-# 에러 처리 데코레이터
-def handle_errors(errorMessage):
+def handle_errors(error_message):
     def real_decorator(coro):
         async def wrapper(*args, **kwargs):
             try:
                 return await coro(*args, **kwargs)
             except NameError:
+                logger.exception(traceback.format_exc())
                 await args[0].channel.send("GPT가 준비 중 이에요!")
             except:
-                logger.exception(errorMessage)
-                await args[0].channel.send(errorMessage)
+                logger.exception(traceback.format_exc())
+                await args[0].channel.send(error_message)
 
         return wrapper
 
@@ -53,7 +49,6 @@ def handle_errors(errorMessage):
 
 
 @handle_errors("GPT 모델 호출 중 오류 발생")
-# GPT 요청 함수
 async def gpt_request(message: discord.Message):
     async with message.channel.typing():
         result = await gpt.chat_request(message.content)
@@ -62,7 +57,7 @@ async def gpt_request(message: discord.Message):
 
 @handle_errors("GPT가 파업을 선언했어요...")
 # GPT 스트림 함수
-async def gpt_stream(message: discord.Message):
+async def send_by_word(message: discord.Message):
     logger.info(f"name: {message.author.nick} - request: {message.content}")
 
     # 초기값 설정
@@ -88,12 +83,9 @@ async def gpt_stream(message: discord.Message):
 
 @bot.event
 async def on_ready():
-    global gpt
-    # GPT 모델 설정
-    gpt = GPT()
     game = discord.Game("대화에 집중")
     await bot.change_presence(status=discord.Status.online, activity=game)
-    logger.info("스타또~")
+    logger.info("GPT bot start")
 
 
 @bot.event
@@ -101,18 +93,19 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
-    if message.content.startswith(prefix):
+    if message.content.startswith(bot_prefix):
         await bot.process_commands(message)
         return
 
     if "gpt" in message.channel.name:
-        await gpt_stream(message)
+        await send_by_word(message)
+        return
 
 
 @bot.command(name="ask")
 async def ask(ctx: commands.Context, *, arg: str):
     ctx.message.content = arg
-    await gpt_stream(ctx.message)
+    await send_by_word(ctx.message)
 
 
 @bot.command(name="clear")
@@ -121,9 +114,9 @@ async def clear_history(ctx: discord.Message):
     await ctx.channel.send("기억이 초기화되었습니다.")
 
 
-@bot.command(name="test")
+@bot.command(name="ping")
 async def test(ctx: discord.Message, *args):
-    await ctx.channel.send("테스트 중입니다.")
+    await ctx.channel.send("pong!")
 
 
 @bot.command(name="config")
@@ -134,18 +127,14 @@ async def config(ctx: discord.Message, *args):
 @handle_errors("config 변경 중 문제가 발생했어요!")
 async def handle_config(ctx: discord.Message, *args):
     if not args:
-        await ctx.channel.send(
-            f"```{json.dumps(gpt.gloSetting, indent=2, ensure_ascii=False)}```"
-        )
+        await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
     elif len(args) == 1:
         key = args[0]
         if key not in gpt.gloSetting:
             await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
         else:
             value = gpt.gloSetting[key]
-            await ctx.channel.send(
-                f"```{json.dumps(value, indent=2, ensure_ascii=False)}```"
-            )
+            await ctx.channel.send(f"```{data_to_json(value)}```")
     elif len(args) == 2:
         key, value = args[0], args[1]
         if key not in gpt.gloSetting:
@@ -182,16 +171,23 @@ async def show_history(ctx: commands.Context):
 @handle_errors("출력 중 문제가 발생했어요!")
 async def handle_show_history(ctx: commands.Context):
     if gpt.history:
-        await ctx.channel.send(
-            f"```{json.dumps(gpt.history, indent=2, ensure_ascii=False)}```"
-        )
+        await ctx.channel.send(f"```{data_to_json(gpt.history)}```")
     else:
         await ctx.channel.send("기록이 없어요. \n대화를 시작해 볼까요?")
+
+
+def data_to_json(data):
+    return json.dumps(data, indent=2, ensure_ascii=False)
 
 
 @bot.command(name="img")
 async def create_image(ctx: commands.Context, *args):
     prompt = " ".join(args)
+    await handle_create_image(ctx, prompt)
+
+
+@handle_errors("이미지 생성 중 문제가 발생했어요!")
+async def handle_create_image(ctx: commands.Context, prompt: str):
     msg = await ctx.reply("생성 중...")
     data = await gpt.create_image(prompt=prompt)
     file = discord.File(data, filename=f"{ctx.author.name}.png")
@@ -199,4 +195,5 @@ async def create_image(ctx: commands.Context, *args):
     await msg.add_files(file)
 
 
+TOKEN = os.environ.get("DISCORD_TOKEN")
 bot.run(TOKEN)
