@@ -1,3 +1,6 @@
+import discord
+from discord.ext import commands
+from discord_setting import bot, gpt, bot_prefix
 import json
 import time
 import os
@@ -6,78 +9,52 @@ import discord
 import traceback
 import discord.errors
 from discord.ext import commands
-from dotenv import load_dotenv
+from .utils import handle_errors
 
-from GPT import GPT
-
-load_dotenv()
-
-LOG_FILENAME = "log.log"
-logging.basicConfig(
-    filename=LOG_FILENAME,
-    level=logging.DEBUG,
-    datefmt="%Y-%m-%d %H:%M:%S",
-    encoding="utf-8",
-    format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
-bot_prefix = "!"
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix=bot_prefix, intents=intents)
 
-gpt = GPT(os.environ["OPENAI_API_KEY"])
+class SendByWord:
+    def __init__(self, message: discord.Message):
+        self.text: str = ""
+        self.now: int = 0
+        self.message: discord.Message = message
+        self.msg: discord.Message
+
+    @handle_errors("GPT가 혀를 깨물었어요...")
+    async def send(self):
+        self.msg = await self.message.reply("대답 중...")
+        logger.info(
+            f"name: {self.message.author.nick} - request: {self.message.content}"
+        )
+        await self.get_from_gpt_and_send_by_word()
+
+        if 1 < len(self.text) < 1900:
+            await self.msg.edit(content=self.text)
+        if 1900 <= len(self.text):
+            await self.msg.add_files()
+        return
+
+    async def get_from_gpt_and_send_by_word(self):
+        async for text in gpt.get_stream_chat(self.message.content):
+            self.text += text
+            await self.send_after_timer()
+
+    async def send_after_timer(self):
+        if time.time() - self.now > 1:
+            await self.send_by_word()
+
+    async def send_by_word(self):
+        self.now = time.time()
+        if 1 < len(self.text) < 1900:
+            await self.msg.edit(content=self.text)
+        elif 1900 <= len(self.text):
+            await self.msg.edit(content=self.text[:1900] + "...")
 
 
-def handle_errors(error_message):
-    def real_decorator(coro):
-        async def wrapper(*args, **kwargs):
-            try:
-                return await coro(*args, **kwargs)
-            except NameError:
-                logger.exception(traceback.format_exc())
-                await args[0].channel.send("GPT가 준비 중 이에요!")
-            except:
-                logger.exception(traceback.format_exc())
-                await args[0].channel.send(error_message)
-
-        return wrapper
-
-    return real_decorator
-
-
-@handle_errors("GPT 모델 호출 중 오류 발생")
-async def gpt_request(message: discord.Message):
-    async with message.channel.typing():
-        result = await gpt.chat_request(message.content)
-        await message.reply(result)
-
-
-@handle_errors("GPT가 파업을 선언했어요...")
-# GPT 스트림 함수
-async def send_by_word(message: discord.Message):
-    logger.info(f"name: {message.author.nick} - request: {message.content}")
-
-    # 초기값 설정
-    text = ""
-    now = 0
-
-    msg: discord.Message = await message.reply("대답 중...")
-    async for r in gpt.get_stream_chat(message.content):
-        text += r
-        if len(text) > 1:
-            try:
-                # 메시지를 일정 간격으로 업데이트
-                if time.time() - now > 1:
-                    now = time.time()
-                    await msg.edit(content=text)
-            except discord.errors.HTTPException:
-                logger.exception("전송 중 오류 발생")
-                logger.exception(text)
-
-    # 최종 응답 메시지 업데이트
-    await msg.edit(content=text)
+async def send_to_gpt(message: discord.Message):
+    sendobj = SendByWord(message)
+    await sendobj.send()
 
 
 @bot.event
@@ -97,14 +74,14 @@ async def on_message(message: discord.Message):
         return
 
     if "gpt" in message.channel.name:
-        await send_by_word(message)
+        await send_to_gpt(message)
         return
 
 
 @bot.command(name="ask")
 async def ask(ctx: commands.Context, *, arg: str):
     ctx.message.content = arg
-    await send_by_word(ctx.message)
+    await send_to_gpt(ctx.message)
 
 
 @bot.command(name="clear")
@@ -192,7 +169,3 @@ async def handle_create_image(ctx: commands.Context, prompt: str):
     file = discord.File(data, filename=f"{ctx.author.name}.png")
     await msg.edit(content="생성 완료")
     await msg.add_files(file)
-
-
-TOKEN = os.environ.get("DISCORD_TOKEN")
-bot.run(TOKEN)
