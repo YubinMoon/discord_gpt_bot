@@ -1,20 +1,26 @@
 import asyncio
 import json
 import time
-import io
+import os
 import logging
 import discord
 import discord.errors
 from discord.ext import commands
+from dotenv import load_dotenv
 
 from gpt import GPT
 
 # 로그 파일 경로 설정
-LOG_FILENAME = 'log.log'
+LOG_FILENAME = "log.log"
 
 # 로그 레벨 설정
-logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG,
-                    datefmt="%Y-%m-%d %H:%M:%S", encoding="utf-8", format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s")
+logging.basicConfig(
+    filename=LOG_FILENAME,
+    level=logging.DEBUG,
+    datefmt="%Y-%m-%d %H:%M:%S",
+    encoding="utf-8",
+    format="%(asctime)s - %(levelname)s \t %(name)s[%(funcName)s:%(lineno)d] - %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +30,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=prefix, intents=intents)
 
-
 # 토큰을 파일에서 불러옴
-with open("./token_discord", "r") as fp:
-    TOKEN = fp.readline()
+load_dotenv()
+TOKEN = os.environ.get("DISCORD_TOKEN")
 
 
 # 에러 처리 데코레이터
@@ -41,7 +46,9 @@ def handle_errors(errorMessage):
             except:
                 logger.exception(errorMessage)
                 await args[0].channel.send(errorMessage)
+
         return wrapper
+
     return real_decorator
 
 
@@ -127,14 +134,18 @@ async def config(ctx: discord.Message, *args):
 @handle_errors("config 변경 중 문제가 발생했어요!")
 async def handle_config(ctx: discord.Message, *args):
     if not args:
-        await ctx.channel.send(f"```{json.dumps(gpt.gloSetting, indent=2, ensure_ascii=False)}```")
+        await ctx.channel.send(
+            f"```{json.dumps(gpt.gloSetting, indent=2, ensure_ascii=False)}```"
+        )
     elif len(args) == 1:
         key = args[0]
         if key not in gpt.gloSetting:
             await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
         else:
             value = gpt.gloSetting[key]
-            await ctx.channel.send(f"```{json.dumps(value, indent=2, ensure_ascii=False)}```")
+            await ctx.channel.send(
+                f"```{json.dumps(value, indent=2, ensure_ascii=False)}```"
+            )
     elif len(args) == 2:
         key, value = args[0], args[1]
         if key not in gpt.gloSetting:
@@ -171,7 +182,9 @@ async def show_history(ctx: commands.Context):
 @handle_errors("출력 중 문제가 발생했어요!")
 async def handle_show_history(ctx: commands.Context):
     if gpt.history:
-        await ctx.channel.send(f"```{json.dumps(gpt.history, indent=2, ensure_ascii=False)}```")
+        await ctx.channel.send(
+            f"```{json.dumps(gpt.history, indent=2, ensure_ascii=False)}```"
+        )
     else:
         await ctx.channel.send("기록이 없어요. \n대화를 시작해 볼까요?")
 
@@ -184,5 +197,6 @@ async def create_image(ctx: commands.Context, *args):
     file = discord.File(data, filename=f"{ctx.author.name}.png")
     await msg.edit(content="생성 완료")
     await msg.add_files(file)
+
 
 bot.run(TOKEN)

@@ -6,3 +6,4 @@ token*
 venv
 test*
 img
+.env
