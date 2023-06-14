@@ -1,55 +1,16 @@
 import discord
 from discord.ext import commands
-from discord_setting import bot, gpt, bot_prefix
+from discord_setting import bot, gpt_container, bot_prefix
 import json
 import time
-import os
 import logging
 import discord
-import traceback
 import discord.errors
 from discord.ext import commands
 from .utils import handle_errors
+from .send import SendByWord
 
 logger = logging.getLogger(__name__)
-
-
-class SendByWord:
-    def __init__(self, message: discord.Message):
-        self.text: str = ""
-        self.now: int = 0
-        self.message: discord.Message = message
-        self.msg: discord.Message
-
-    @handle_errors("GPT가 혀를 깨물었어요...")
-    async def send(self):
-        self.msg = await self.message.reply("대답 중...")
-        logger.info(
-            f"name: {self.message.author.nick} - request: {self.message.content}"
-        )
-        await self.get_from_gpt_and_send_by_word()
-
-        if 1 < len(self.text) < 1900:
-            await self.msg.edit(content=self.text)
-        if 1900 <= len(self.text):
-            await self.msg.add_files()
-        return
-
-    async def get_from_gpt_and_send_by_word(self):
-        async for text in gpt.get_stream_chat(self.message.content):
-            self.text += text
-            await self.send_after_timer()
-
-    async def send_after_timer(self):
-        if time.time() - self.now > 1:
-            await self.send_by_word()
-
-    async def send_by_word(self):
-        self.now = time.time()
-        if 1 < len(self.text) < 1900:
-            await self.msg.edit(content=self.text)
-        elif 1900 <= len(self.text):
-            await self.msg.edit(content=self.text[:1900] + "...")
 
 
 async def send_to_gpt(message: discord.Message):
@@ -79,29 +40,31 @@ async def on_message(message: discord.Message):
 
 
 @bot.command(name="ask")
-async def ask(ctx: commands.Context, *, arg: str):
+async def ask(ctx: commands.context.Context, *, arg: str):
     ctx.message.content = arg
     await send_to_gpt(ctx.message)
 
 
 @bot.command(name="clear")
-async def clear_history(ctx: discord.Message):
+async def clear_history(ctx: commands.context.Context):
+    gpt = gpt_container.get_gpt(ctx.channel.id)
     gpt.clear_history()
     await ctx.channel.send("기억이 초기화되었습니다.")
 
 
 @bot.command(name="ping")
-async def test(ctx: discord.Message, *args):
+async def test(ctx: commands.context.Context, *args):
     await ctx.channel.send("pong!")
 
 
 @bot.command(name="config")
-async def config(ctx: discord.Message, *args):
+async def config(ctx: commands.context.Context, *args):
     await handle_config(ctx, *args)
 
 
 @handle_errors("config 변경 중 문제가 발생했어요!")
-async def handle_config(ctx: discord.Message, *args):
+async def handle_config(ctx: commands.context.Context, *args):
+    gpt = gpt_container.get_gpt(ctx.channel.id)
     if not args:
         await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
     elif len(args) == 1:
@@ -124,12 +87,13 @@ async def handle_config(ctx: discord.Message, *args):
 
 
 @bot.command(name="role")
-async def role_config(ctx: commands.Context, *args):
+async def role_config(ctx: commands.context.Context, *args):
     await handle_role_config(ctx, *args)
 
 
 @handle_errors("역할 변경 중 에러가 발생했어요!")
-async def handle_role_config(ctx: commands.Context, *args):
+async def handle_role_config(ctx: commands.context.Context, *args):
+    gpt = gpt_container.get_gpt(ctx.channel.id)
     if not args:
         gpt.set_system_text("")
         await ctx.channel.send("역할 정보가 초기화되었습니다.")
@@ -140,14 +104,16 @@ async def handle_role_config(ctx: commands.Context, *args):
 
 
 @bot.command(name="history")
-async def show_history(ctx: commands.Context):
+async def show_history(ctx: commands.context.Context):
+    print(type(ctx))
     await handle_show_history(ctx)
 
 
 @handle_errors("출력 중 문제가 발생했어요!")
-async def handle_show_history(ctx: commands.Context):
-    if gpt.history:
-        await ctx.channel.send(f"```{data_to_json(gpt.history)}```")
+async def handle_show_history(ctx: commands.context.Context):
+    gpt = gpt_container.get_gpt(ctx.channel.id)
+    if gpt.message_box:
+        await ctx.channel.send(f"```{data_to_json(gpt.message_box.make_messages())}```")
     else:
         await ctx.channel.send("기록이 없어요. \n대화를 시작해 볼까요?")
 
@@ -157,13 +123,14 @@ def data_to_json(data):
 
 
 @bot.command(name="img")
-async def create_image(ctx: commands.Context, *args):
+async def create_image(ctx: commands.context.Context, *args):
     prompt = " ".join(args)
     await handle_create_image(ctx, prompt)
 
 
 @handle_errors("이미지 생성 중 문제가 발생했어요!")
-async def handle_create_image(ctx: commands.Context, prompt: str):
+async def handle_create_image(ctx: commands.context.Context, prompt: str):
+    gpt = gpt_container.get_gpt(ctx.channel.id)
     msg = await ctx.reply("생성 중...")
     data = await gpt.create_image(prompt=prompt)
     file = discord.File(data, filename=f"{ctx.author.name}.png")

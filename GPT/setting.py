@@ -21,7 +21,7 @@ class Setting:
             "top_p": 1.0,
             "keep_min": 10,
         }
-        self.load_from_json()
+        # self.load_from_json() # TODO database 화 하기
         self.sync_setting()
 
     def load_from_json(self) -> None:
@@ -37,7 +37,7 @@ class Setting:
         if key not in self.setting_value:
             raise KeyError(f"'{key}'이라는 설정은 존재하지 않습니다.")
         self.setting_value[key] = self.setting_type[key](value)
-        self.save_to_json()
+        # self.save_to_json()
         self.sync_setting()
 
     def save_to_json(self) -> None:
