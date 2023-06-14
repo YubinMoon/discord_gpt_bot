@@ -1,18 +1,14 @@
 import openai.error
-import json
 import time
 import logging
-import tiktoken
 import os
-import asyncio
 import aiohttp
 import traceback
 import datetime
-import copy
 import io
 from dotenv import load_dotenv
 from .setting import Setting
-from .chat import stream_chat_request
+from .chat import stream_chat_request, chat_request
 from .message import MessageLine, MessageBox
 from .token import Tokener
 
@@ -52,6 +48,21 @@ class GPT:
         message = message + _past_messages + [new_message]
         return message
 
+    async def get_stream_chat(self, _message: str):
+        self.is_timeout()
+        self.message_box.add_message(MessageLine(role="user", content=_message))
+        messages = self.message_box.make_messages(setting=self.setting)
+        self.logger.info(f"message: {messages}")
+
+        collected_messages = MessageLine()
+        async for data in self.get_chat_stream_data(messages):
+            new_message = MessageLine(data=data)
+            collected_messages += new_message
+            yield new_message.content
+
+        self.logger.info(f"request: {collected_messages}")
+        self.message_box.add_message(collected_messages)
+
     async def get_chat_stream_data(self, messages: list):
         try:
             headers = {
@@ -79,20 +90,42 @@ class GPT:
             yield "API 에러"
             raise openai.error.APIConnectionError("연결 실패") from e
 
-    async def get_stream_chat(self, _message: str):
-        self.is_timeout()
-        self.message_box.add_message(MessageLine(role="user", content=_message))
-        messages = self.message_box.make_messages(setting=self.setting)
+    async def short_chat(self, message: str, system: str | None = None):
+        messages: list[MessageLine] = []
+        if system:
+            messages.append(MessageLine(role="system", content=system))
+        messages.append(MessageLine(role="user", content=message))
+        messages = [message.make_message() for message in messages]
         self.logger.info(f"message: {messages}")
 
-        collected_messages = MessageLine()
-        async for data in self.get_chat_stream_data(messages):
-            new_message = MessageLine(data=data)
-            collected_messages += new_message
-            yield new_message.content
+        result = await self.get_chat_data(messages)
 
-        self.logger.info(f"request: {collected_messages}")
-        self.message_box.add_message(collected_messages)
+        self.logger.info(f"request: {result}")
+        return result
+
+    async def get_chat_data(self, messages: list) -> str:
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            }
+            data = {
+                "model": self.setting.model,
+                "messages": messages,
+                "temperature": self.setting.temperature,
+                "top_p": self.setting.top_p,
+            }
+            return await chat_request(headers=headers, data=data)
+
+        except aiohttp.ClientConnectionError:
+            self.logger.exception(traceback.print_exc())
+            return "API 연결 실패"
+        except aiohttp.ClientResponseError:
+            self.logger.exception(traceback.print_exc())
+            return "API 응답 오류"
+        except Exception:
+            self.logger.exception(traceback.print_exc())
+            return "API 에러"
 
     async def create_image(self, prompt: str):
         headers = {

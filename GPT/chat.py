@@ -2,7 +2,7 @@ import aiohttp
 import logging
 import json
 
-from typing import Iterator, AsyncGenerator, AsyncIterator
+from typing import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
@@ -42,3 +42,14 @@ async def get_data_from_chunk(chunk_str: str) -> AsyncIterator[str]:
             data_dict = json.loads(data)
             response = data_dict["choices"][0]
             yield response  # {"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}
+
+
+async def chat_request(headers: dict, data: dict) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=data,
+        ) as response:
+            response = await response.json()
+            return response.get("choices")[0].get("message").get("content")

@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from bot import command
 from discord_setting import bot
+from GPT import GPT
 
 load_dotenv()
 

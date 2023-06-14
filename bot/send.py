@@ -1,11 +1,13 @@
 import logging
 import time
 import discord
-from GPT import GPT, GPTBox
+import os
+from GPT import GPT
 from .utils import handle_errors
 from discord_setting import gpt_container
 
 logger = logging.getLogger(__name__)
+MAX_TEXT_LENGTH = 1900
 
 
 class SendByWord:
@@ -24,11 +26,11 @@ class SendByWord:
         )
         await self.get_from_gpt_and_send_by_word()
 
-        if 1 < len(self.text) < 1900:
+        if 1 < len(self.text) < MAX_TEXT_LENGTH:
             await self.msg.edit(content=self.text)
-        if 1900 <= len(self.text):
-            await self.msg.add_files()
-        return
+        if MAX_TEXT_LENGTH <= len(self.text):
+            await self.send_to_file()
+            await self.msg.edit(content="")
 
     async def get_from_gpt_and_send_by_word(self):
         async for text in self.gpt.get_stream_chat(self.message.content):
@@ -41,7 +43,22 @@ class SendByWord:
 
     async def send_by_word(self):
         self.now = time.time()
-        if 1 < len(self.text) < 1900:
+        if 1 < len(self.text) < MAX_TEXT_LENGTH:
             await self.msg.edit(content=self.text)
-        elif 1900 <= len(self.text):
-            await self.msg.edit(content=self.text[:1900] + "...")
+        elif MAX_TEXT_LENGTH <= len(self.text):
+            await self.msg.edit(content=self.text[:MAX_TEXT_LENGTH] + "...")
+
+    async def send_to_file(self):
+        file_name = await self.gpt.short_chat(
+            f"'{self.message.content}' I need a file name to save the following question in a file. Please suggest an English file name within 10 characters. The file extension should be .txt!",
+            "I am an AI that generates file names summarizing the content.",
+        )
+        if ".txt" not in file_name:
+            file_name += ".txt"
+        file_path = "temp/" + file_name
+        if not os.path.isdir("temp"):
+            os.mkdir("temp")
+        logger.info(f"make file: {file_path}")
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(self.text.replace(". ", ".\n"))
+        await self.msg.add_files(discord.File(file_path, filename=file_name))
