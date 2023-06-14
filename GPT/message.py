@@ -38,6 +38,9 @@ class MessageLine:
             finish_reason = None
         self.finish_reason = finish_reason
 
+    def to_message(self) -> dict[str, str]:
+        return {"role": self.role, "content": self.content}
+
     def __str__(self):
         message = f"role: {self.role}, content: {self.content}"
         if self.finish_reason:
@@ -46,5 +49,19 @@ class MessageLine:
 
 
 class MessageBox:
-    def __init__(self, name):
-        pass
+    def __init__(self, system_text: str | None = None):
+        self.messaes: list[MessageLine] = []
+        if system_text:
+            self.add_message(MessageLine(role="system", content=system_text))
+
+    def add_message(self, message: MessageLine):
+        self.messaes.append(message)
+
+    def to_messages(self) -> list[dict[str, str]]:
+        return [message.to_message() for message in self.messaes]
+
+    def __len__(self):
+        return len(self.messaes)
+
+    def __str__(self):
+        return f"< MessageBox-{len(self.messaes)} >"
