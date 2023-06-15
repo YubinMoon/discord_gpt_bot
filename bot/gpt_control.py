@@ -1,23 +1,18 @@
 import logging
 import time
 import discord
+import json
 from discord.ext import commands
 import os
 from GPT import GPT
 from discord_setting import gpt_container
-from .utils import HandleErrors
+from .utils import HandleErrors, data_to_json, UnValidCommandError, GPTHandler
 
 logger = logging.getLogger(__name__)
 MAX_TEXT_LENGTH = 1900
 
 
-class CommandHandler:
-    def __init__(self, discord_message: discord.Message):
-        self.discord_message: discord.Message = discord_message
-        self.gpt: GPT = gpt_container.get_gpt(discord_message.channel.id)
-
-
-class SendByWord(CommandHandler):
+class SendByWord(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
         self.text: str = ""
@@ -25,7 +20,7 @@ class SendByWord(CommandHandler):
         self.msg: discord.Message
 
     @HandleErrors("설정 변경 중 에러가 발생했어요!")
-    async def send(self):
+    async def run(self):
         self.msg = await self.discord_message.reply("대답 중...")
         logger.info(
             f"name: {self.discord_message.author.nick} - request: {self.discord_message.content}"
@@ -70,30 +65,41 @@ class SendByWord(CommandHandler):
         await self.msg.add_files(discord.File(file_path, filename=file_name))
 
 
-class ConfigHandler(CommandHandler):
+class ConfigHandler(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
 
+    @HandleErrors("설정을 불러오다 에러가 발생했어요!")
+    async def run(self, *args: tuple[str]):
+        if not args:
+            setting = self.get_all_setting()
+            await self.discord_message.reply(f"```{setting}```")
+        elif len(args) == 1:
+            setting = self.get_setting(key=args[0])
+            await self.discord_message.reply(f"```{setting}```")
+        elif len(args) == 2:
+            key, value = args[0], " ".join(args[1:])
+            await self.set_setting_and_reply(key, value)
+        else:
+            await self.discord_message.reply("```!gconfig [설정명] [설정값]``` 형태로 입력해주세요.")
 
-# @handle_errors("config 변경 중 문제가 발생했어요!")
-# async def handle_config(ctx: commands.context.Context, *args):
-#     gpt = gpt_container.get_gpt(ctx.channel.id)
-#     if not args:
-#         await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
-#     elif len(args) == 1:
-#         key = args[0]
-#         if key not in gpt.gloSetting:
-#             await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
-#         else:
-#             value = gpt.gloSetting[key]
-#             await ctx.channel.send(f"```{data_to_json(value)}```")
-#     elif len(args) == 2:
-#         key, value = args[0], args[1]
-#         if key not in gpt.gloSetting:
-#             await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
-#         else:
-#             gpt.gloSetting[key] = value
-#             gpt.save_setting()
-#             await ctx.channel.send(f"```{key}: {value}```")
-#     else:
-#         await ctx.channel.send("```!gconfig [설정명] [설정값]``` 형태로 입력해주세요.")
+    def get_all_setting(self):
+        data = self.gpt.setting.setting_value
+        return data_to_json(data)
+
+    def get_setting(self, key: str) -> str:
+        data = self.gpt.setting.setting_value
+        if key not in data:
+            raise UnValidCommandError(f"'{key}'이라는 설정을 찾을 수 없습니다.")
+        else:
+            print(data[key])
+            return data_to_json(data[key])
+
+    async def set_setting_and_reply(self, key: str, value: str) -> None:
+        data = self.gpt.setting.setting_value
+        if key not in data:
+            raise UnValidCommandError(f"'{key}'이라는 설정을 찾을 수 없습니다.")
+        else:
+            self.gpt.setting.set_setting(key, value)
+            new_value = self.gpt.setting.setting_value[key]
+            await self.discord_message.reply(f"```{key}: {new_value}```")

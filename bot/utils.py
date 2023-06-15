@@ -1,14 +1,26 @@
 import logging
 import traceback
 import discord
+import json
 from discord.ext import commands
 from discord.errors import HTTPException
+from discord_setting import gpt_container
+from GPT import GPT
 
 logger = logging.getLogger(__name__)
 
 
 class UnValidCommandError(Exception):
     ...
+
+
+class GPTHandler:
+    def __init__(self, discord_message: discord.Message):
+        self.discord_message: discord.Message = discord_message
+        self.gpt: GPT = gpt_container.get_gpt(discord_message.channel.id)
+
+    def run(self):
+        raise NotImplementedError
 
 
 class HandleErrors:
@@ -39,3 +51,10 @@ class HandleErrors:
             if isinstance(arg, (discord.Message, commands.context.Context)):
                 await arg.reply(message)
                 break
+            elif isinstance(arg, GPTHandler):
+                await arg.discord_message.reply(message)
+                break
+
+
+def data_to_json(data: dict) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False)

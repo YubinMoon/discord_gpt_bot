@@ -29,14 +29,14 @@ async def on_message(message: discord.Message):
         return
 
     if "gpt" in message.channel.name:
-        await SendByWord(message).send()
+        await SendByWord(message).run()
         return
 
 
 @bot.command(name="ask")
 async def ask(ctx: commands.context.Context, *, arg: str):
     ctx.message.content = arg
-    await SendByWord(ctx.message).send()
+    await SendByWord(ctx.message).run()
 
 
 @bot.command(name="clear")
@@ -52,12 +52,8 @@ async def test(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="config")
-@HandleErrors("설정 변경 중 에러가 발생했어요!")
 async def config(ctx: commands.context.Context, *args):
-    # if not args:
-    #     await gpt_control.send_setting_to_string(ctx)
-    #     await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
-    await handle_config(ctx, *args)
+    await gpt_control.ConfigHandler(ctx.message).run(*args)
 
 
 async def handle_config(ctx: commands.context.Context, *args):
