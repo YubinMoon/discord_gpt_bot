@@ -1,11 +1,6 @@
 import logging
 import os
-from dotenv import load_dotenv
-from bot import command
 from discord_setting import bot
-from GPT import GPT
-
-load_dotenv()
 
 LOG_FILENAME = "log.log"
 logging.basicConfig(
