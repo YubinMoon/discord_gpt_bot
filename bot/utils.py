@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 from discord_setting import gpt_container
 from GPT import GPT
+from GPT import ChatAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ class HandleErrors:
                 await self.send_error_message(*args)
             except UnValidCommandError as e:
                 logger.exception("커멘드 오류 발생")
+                await self.send_error_message(*args, error_message=e)
+            except ChatAPIError as e:
+                logger.exception("GPT API 오류 발생")
                 await self.send_error_message(*args, error_message=e)
             except:
                 logger.error(traceback.format_exc())

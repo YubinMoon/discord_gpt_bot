@@ -9,9 +9,6 @@
 venv
 __pycache__
 
-# test
-test*
-
 # temp file
 img
 temp

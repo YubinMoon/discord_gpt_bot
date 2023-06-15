@@ -8,7 +8,7 @@ import datetime
 import io
 from dotenv import load_dotenv
 from .setting import Setting
-from .chat import stream_chat_request, chat_request
+from .chat import stream_chat_request, Chat, ChatStream
 from .message import MessageLine, MessageBox
 from .token import Tokener
 
@@ -117,36 +117,13 @@ class GPT:
             messages.append(MessageLine(role="system", content=system))
         messages.append(MessageLine(role="user", content=message))
         messages = [message.make_message() for message in messages]
+        chat_api = Chat(api_key=self.api_key)
         logger.info(f"message: {messages}")
 
-        result = await self.get_chat_data(messages)
+        result = await chat_api.run(messages, self.setting)
 
         logger.info(f"request: {result}")
         return result
-
-    async def get_chat_data(self, messages: list) -> str:
-        try:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-            data = {
-                "model": self.setting.model,
-                "messages": messages,
-                "temperature": self.setting.temperature,
-                "top_p": self.setting.top_p,
-            }
-            return await chat_request(headers=headers, data=data)
-
-        except aiohttp.ClientConnectionError:
-            logger.exception(traceback.print_exc())
-            return "API 연결 실패"
-        except aiohttp.ClientResponseError:
-            logger.exception(traceback.print_exc())
-            return "API 응답 오류"
-        except Exception:
-            logger.exception(traceback.print_exc())
-            return "API 에러"
 
     async def create_image(self, prompt: str):
         headers = {
