@@ -19,7 +19,7 @@ class SendByWord(GPTHandler):
         self.now: int = 0
         self.msg: discord.Message
 
-    @HandleErrors("설정 변경 중 에러가 발생했어요!")
+    @HandleErrors("GPT가 혀를 깨물었어요!")
     async def run(self):
         self.msg = await self.discord_message.reply("대답 중...")
         logger.info(
@@ -92,7 +92,6 @@ class ConfigHandler(GPTHandler):
         if key not in data:
             raise UnValidCommandError(f"'{key}'이라는 설정을 찾을 수 없습니다.")
         else:
-            print(data[key])
             return data_to_json(data[key])
 
     async def set_setting_and_reply(self, key: str, value: str) -> None:
@@ -103,3 +102,20 @@ class ConfigHandler(GPTHandler):
             self.gpt.setting.set_setting(key, value)
             new_value = self.gpt.setting.setting_value[key]
             await self.discord_message.reply(f"```{key}: {new_value}```")
+
+
+class RoleHandler(GPTHandler):
+    def __init__(self, discord_message: discord.Message):
+        super().__init__(discord_message)
+
+    @HandleErrors("역할을 설정하다 에러가 발생했어요!")
+    async def run(self, *args: tuple[str]):
+        if not args:
+            await self.set_system_text_and_reply("")
+        else:
+            role_text = " ".join(args)
+            await self.set_system_text_and_reply(role_text)
+
+    async def set_system_text_and_reply(self, role_text: str = ""):
+        self.gpt.setting.set_setting("system_text", role_text)
+        await self.discord_message.reply("역할 정보가 변경되었어요.")

@@ -56,48 +56,12 @@ async def config(ctx: commands.context.Context, *args):
     await gpt_control.ConfigHandler(ctx.message).run(*args)
 
 
-async def handle_config(ctx: commands.context.Context, *args):
-    gpt = gpt_container.get_gpt(ctx.channel.id)
-    if not args:
-        await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
-    elif len(args) == 1:
-        key = args[0]
-        if key not in gpt.gloSetting:
-            await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
-        else:
-            value = gpt.gloSetting[key]
-            await ctx.channel.send(f"```{data_to_json(value)}```")
-    elif len(args) == 2:
-        key, value = args[0], args[1]
-        if key not in gpt.gloSetting:
-            await ctx.channel.send(f"'{key}'이라는 설정은 존재하지 않습니다.")
-        else:
-            gpt.gloSetting[key] = value
-            gpt.save_setting()
-            await ctx.channel.send(f"```{key}: {value}```")
-    else:
-        await ctx.channel.send("```!gconfig [설정명] [설정값]``` 형태로 입력해주세요.")
-
-
 @bot.command(name="role")
-@HandleErrors("역할 변경 중 에러가 발생했어요!")
 async def role_config(ctx: commands.context.Context, *args):
-    await handle_role_config(ctx, *args)
-
-
-async def handle_role_config(ctx: commands.context.Context, *args):
-    gpt = gpt_container.get_gpt(ctx.channel.id)
-    if not args:
-        gpt.set_system_text("")
-        await ctx.channel.send("역할 정보가 초기화되었습니다.")
-    else:
-        role_description = " ".join(args)
-        gpt.set_system_text(role_description)
-        await ctx.channel.send("역할 정보가 설정되었습니다.")
+    await gpt_control.RoleHandler(ctx.message).run(*args)
 
 
 @bot.command(name="history")
-@HandleErrors("출력 중 문제가 발생했어요!")
 async def show_history(ctx: commands.context.Context):
     print(gpt_container)
     await handle_show_history(ctx)

@@ -19,8 +19,11 @@ class GPTHandler:
         self.discord_message: discord.Message = discord_message
         self.gpt: GPT = gpt_container.get_gpt(discord_message.channel.id)
 
-    def run(self):
+    async def run(self):
         raise NotImplementedError
+
+    async def reply(self, *args) -> discord.Message:
+        return await self.discord_message.reply(*args)
 
 
 class HandleErrors:
@@ -48,11 +51,8 @@ class HandleErrors:
     async def send_error_message(self, *args, error_message: str | None = None) -> None:
         message = error_message or self.error_message
         for arg in args:
-            if isinstance(arg, (discord.Message, commands.context.Context)):
+            if isinstance(arg, (discord.Message, commands.context.Context, GPTHandler)):
                 await arg.reply(message)
-                break
-            elif isinstance(arg, GPTHandler):
-                await arg.discord_message.reply(message)
                 break
 
 
