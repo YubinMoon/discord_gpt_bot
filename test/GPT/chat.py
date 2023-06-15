@@ -1,7 +1,6 @@
 import os
-from unittest import TestCase, IsolatedAsyncioTestCase
+from unittest import IsolatedAsyncioTestCase
 from GPT import chat
-from GPT import setting
 from GPT.message import MessageLine
 from dotenv import load_dotenv
 

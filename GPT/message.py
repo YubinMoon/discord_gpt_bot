@@ -81,7 +81,6 @@ class MessageBox:
         messages = []
         if not setting:
             return [message.make_message() for message in self.messaes]
-
         if setting.system_text:
             messages = [[MessageLine(role="system", content=setting.system_text)]]
         while setting.max_token < Tokener.num_tokens_from_messages(
@@ -100,6 +99,9 @@ class MessageBox:
 
     def __len__(self):
         return len(self.messaes)
+
+    def __getitem__(self, idx) -> MessageLine:
+        return self.messaes[idx]
 
     def __str__(self):
         print(self.messaes)
