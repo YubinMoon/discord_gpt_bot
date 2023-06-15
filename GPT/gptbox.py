@@ -13,3 +13,6 @@ class GPTBox:
         else:
             self.gpt_container[channel_id] = GPT(api_key if api_key else self.api_key)
             return self.gpt_container[channel_id]
+
+    def __str__(self) -> str:
+        return f"< GPTBox : {self.gpt_container.keys()} >"

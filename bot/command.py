@@ -5,16 +5,11 @@ import json
 import logging
 import discord
 import discord.errors
-from discord.ext import commands
-from .utils import handle_errors
-from .send import SendByWord
+from .utils import UnValidCommandError, HandleErrors
+from .gpt_control import SendByWord
+from . import gpt_control
 
 logger = logging.getLogger(__name__)
-
-
-async def send_to_gpt(message: discord.Message):
-    sendobj = SendByWord(message)
-    await sendobj.send()
 
 
 @bot.event
@@ -34,14 +29,14 @@ async def on_message(message: discord.Message):
         return
 
     if "gpt" in message.channel.name:
-        await send_to_gpt(message)
+        await SendByWord(message).send()
         return
 
 
 @bot.command(name="ask")
 async def ask(ctx: commands.context.Context, *, arg: str):
     ctx.message.content = arg
-    await send_to_gpt(ctx.message)
+    await SendByWord(ctx.message).send()
 
 
 @bot.command(name="clear")
@@ -57,11 +52,14 @@ async def test(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="config")
+@HandleErrors("설정 변경 중 에러가 발생했어요!")
 async def config(ctx: commands.context.Context, *args):
+    # if not args:
+    #     await gpt_control.send_setting_to_string(ctx)
+    #     await ctx.channel.send(f"```{data_to_json(gpt.gloSetting)}```")
     await handle_config(ctx, *args)
 
 
-@handle_errors("config 변경 중 문제가 발생했어요!")
 async def handle_config(ctx: commands.context.Context, *args):
     gpt = gpt_container.get_gpt(ctx.channel.id)
     if not args:
@@ -86,11 +84,11 @@ async def handle_config(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="role")
+@HandleErrors("역할 변경 중 에러가 발생했어요!")
 async def role_config(ctx: commands.context.Context, *args):
     await handle_role_config(ctx, *args)
 
 
-@handle_errors("역할 변경 중 에러가 발생했어요!")
 async def handle_role_config(ctx: commands.context.Context, *args):
     gpt = gpt_container.get_gpt(ctx.channel.id)
     if not args:
@@ -103,12 +101,12 @@ async def handle_role_config(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="history")
+@HandleErrors("출력 중 문제가 발생했어요!")
 async def show_history(ctx: commands.context.Context):
-    print(type(ctx))
+    print(gpt_container)
     await handle_show_history(ctx)
 
 
-@handle_errors("출력 중 문제가 발생했어요!")
 async def handle_show_history(ctx: commands.context.Context):
     gpt = gpt_container.get_gpt(ctx.channel.id)
     if gpt.message_box:
@@ -122,12 +120,12 @@ def data_to_json(data):
 
 
 @bot.command(name="img")
+@HandleErrors("이미지 생성 중 문제가 발생했어요!")
 async def create_image(ctx: commands.context.Context, *args):
     prompt = " ".join(args)
     await handle_create_image(ctx, prompt)
 
 
-@handle_errors("이미지 생성 중 문제가 발생했어요!")
 async def handle_create_image(ctx: commands.context.Context, prompt: str):
     gpt = gpt_container.get_gpt(ctx.channel.id)
     msg = await ctx.reply("생성 중...")
