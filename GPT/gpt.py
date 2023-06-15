@@ -25,18 +25,6 @@ class GPT:
             os.mkdir("img")
         self.clear_history()
 
-    def control_token(self):
-        try:
-            token = Tokener.num_tokens_from_messages(self.history)
-
-            logger.info(f"use token: {token}")
-            # 토큰 수가 최대값을 초과하면, 최근 2개 이전의 메시지를 제거합니다.
-            while token > self.setting.max_token and past_messages:
-                past_messages = past_messages[2:]
-                token = Tokener.num_tokens_from_messages(past_messages)
-        except:
-            logger.exception("Error in controlling past messages")
-
     async def get_stream_chat(self, _message: str):
         self.is_timeout()
         self.message_box.add_message(MessageLine(role="user", content=_message))
@@ -111,7 +99,7 @@ class GPT:
             yield "API 에러"
             raise openai.error.APIConnectionError("연결 실패") from e
 
-    async def short_chat(self, message: str, system: str | None = None):
+    async def short_chat(self, message: str, system: str | None = None) -> str:
         messages: list[MessageLine] = []
         if system:
             messages.append(MessageLine(role="system", content=system))
@@ -163,11 +151,6 @@ class GPT:
     def clear_history(self):
         logger.info("history cleared")
         self.message_box.clear()
-
-    def set_system_text(self, setting):  # TODO 셋팅 변경 추가
-        pass
-        # self.system_text = setting
-        # self.load_setting()
 
     def is_timeout(self):
         if time.time() - self.lastRequestTime > self.setting.keep_min * 60:

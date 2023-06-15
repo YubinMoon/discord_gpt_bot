@@ -33,4 +33,13 @@ class ChatTests(IsolatedAsyncioTestCase):
         message = MessageLine()
         async for data in stream_api.run(self.messages, self.setting):
             message += MessageLine(data=data)
-            print(message)
+        self.assertGreater(len(message.content), 0)
+
+    async def test_run_stream_no_message(self):
+        stream_api = chat.ChatStream(api_key=self.api_key)
+        message = MessageLine()
+        with self.assertRaises(chat.ChatAPIError) as context:
+            async for data in stream_api.run([], self.setting):
+                message += MessageLine(data=data)
+        error_dict = context.exception.args[0]
+        self.assertEqual(error_dict.get("type"), "invalid_request_error")

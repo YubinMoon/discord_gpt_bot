@@ -18,7 +18,7 @@ class MessageLine:
         role: str | None = None,
         content: str | None = None,
     ):
-        self.role: str = "user"
+        self.role: str = ""
         self.content: str = ""
         self.function_call: dict[str, str] = {}
         self.finish_reason: str | None = None
