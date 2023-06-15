@@ -11,9 +11,6 @@ class MessageLine:
     LENGHT: str = "length"
     FUNCTION_CALL: str = "function_call"
     CONTENT_FILTER: str = "content_filter"
-    role: str = "user"
-    content: str = ""
-    finish_reason: str | None = None
 
     def __init__(
         self,
@@ -21,6 +18,11 @@ class MessageLine:
         role: str | None = None,
         content: str | None = None,
     ):
+        self.role: str = "user"
+        self.content: str = ""
+        self.function_call: dict[str, str] = {}
+        self.finish_reason: str | None = None
+
         if data:
             self.set_by_data(data)
         if role:
@@ -34,6 +36,7 @@ class MessageLine:
             delta = dict()
         self.role = delta.get("role", "")
         self.content = delta.get("content", "")
+        self.function_call = delta.get("function_call", {})
         finish_reason = data.get("finish_reason", None)
         if finish_reason == "null":
             finish_reason = None
@@ -46,6 +49,8 @@ class MessageLine:
         message = f"role: {self.role}, content: {self.content}"
         if self.finish_reason:
             message += f", finish_reason: {self.finish_reason}"
+        if self.function_call:
+            message += f", function_call: {self.function_call}"
         return f"< MessageLine-{message} >"
 
     def __add__(self, other):
@@ -56,6 +61,12 @@ class MessageLine:
             temp.content = self.content + other.content
         if other.finish_reason:
             temp.finish_reason = other.finish_reason
+        if other.function_call:
+            for key, value in other.function_call.items():
+                if key in temp.function_call:
+                    temp.function_call[key] += value
+                else:
+                    temp.function_call[key] = value
         return temp
 
 

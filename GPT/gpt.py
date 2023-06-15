@@ -44,13 +44,45 @@ class GPT:
         logger.info(f"message: {messages}")
 
         collected_messages = MessageLine()
-        async for data in self.get_chat_stream_data(messages):
+        # async for data in self.get_chat_stream_data(messages):
+        async for data in self.get_chat_stream_with_function(
+            messages, self.make_dummy_function()
+        ):
             new_message = MessageLine(data=data)
             collected_messages += new_message
             yield new_message.content
 
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
+
+    async def get_chat_stream_with_function(self, messages: list, function: list):
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            }
+            data = {
+                "model": self.setting.model,
+                "messages": messages,
+                "functions": function,
+                "function_call": "auto",
+                "temperature": self.setting.temperature,
+                "top_p": self.setting.top_p,
+                "stream": True,
+            }
+            async for data in stream_chat_request(headers=headers, data=data):
+                yield data
+
+        except aiohttp.ClientConnectionError:
+            logger.exception(traceback.print_exc())
+            yield "API 연결 실패"
+        except aiohttp.ClientResponseError:
+            logger.exception(traceback.print_exc())
+            yield "API 응답 오류"
+        except Exception as e:
+            logger.exception(traceback.print_exc())
+            yield "API 에러"
+            raise openai.error.APIConnectionError("연결 실패") from e
 
     async def get_chat_stream_data(self, messages: list):
         try:
@@ -164,3 +196,25 @@ class GPT:
         if time.time() - self.lastRequestTime > self.setting.keep_min * 60:
             self.clear_history()
         self.lastRequestTime = time.time()
+
+    def make_dummy_function(self) -> list:
+        return [
+            {
+                "name": "get_current_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "unit": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                        },
+                    },
+                    "required": ["location"],
+                },
+            }
+        ]

@@ -31,7 +31,8 @@ class ChatHandler(GPTHandler):
 
     async def get_from_gpt_and_send_by_word(self):
         async for text in self.gpt.get_stream_chat(self.discord_message.content):
-            self.text += text
+            if text:
+                self.text += text
             await self.send_after_timer()
 
     async def send_after_timer(self):
