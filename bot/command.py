@@ -66,16 +66,5 @@ async def show_history(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="img")
-@HandleErrors("이미지 생성 중 문제가 발생했어요!")
 async def create_image(ctx: commands.context.Context, *args):
-    prompt = " ".join(args)
-    await handle_create_image(ctx, prompt)
-
-
-async def handle_create_image(ctx: commands.context.Context, prompt: str):
-    gpt = gpt_container.get_gpt(ctx.channel.id)
-    msg = await ctx.reply("생성 중...")
-    data = await gpt.create_image(prompt=prompt)
-    file = discord.File(data, filename=f"{ctx.author.name}.png")
-    await msg.edit(content="생성 완료")
-    await msg.add_files(file)
+    await gpt_control.ImageHandler(ctx.message).run(*args)

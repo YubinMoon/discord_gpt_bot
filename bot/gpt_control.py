@@ -68,9 +68,19 @@ class ChatHandler(GPTHandler):
 class ImageHandler(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
-        self.text: str = ""
-        self.now: int = 0
-        self.msg: discord.Message
+
+    @HandleErrors("이미지 생성 중 문제가 발생했어요!")
+    async def run(self, *args: tuple[str]):
+        prompt = " ".join(args)
+        file_name = await self.gpt.short_chat(
+            f"'{prompt}' I'm trying to generate and save an image with the following sentence, but I can't come up with a file name. Can you generate a file name in English within 10 characters. The file extension should be .png!",
+            "I am an AI that generates file names summarizing the content.",
+        )
+        msg = await self.reply("생성 중...")
+        data = await self.gpt.create_image(prompt=prompt)
+        file = discord.File(data, filename=file_name)
+        await msg.edit(content="생성 완료")
+        await msg.add_files(file)
 
 
 class ConfigHandler(GPTHandler):

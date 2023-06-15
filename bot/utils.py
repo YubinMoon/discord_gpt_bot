@@ -44,7 +44,7 @@ class HandleErrors:
                 logger.exception("커멘드 오류 발생")
                 await self.send_error_message(*args, error_message=e)
             except:
-                logger.exception(traceback.format_exc())
+                logger.error(traceback.format_exc())
 
         return inner
 
