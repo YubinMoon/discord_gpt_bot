@@ -1,6 +1,7 @@
 import logging
 import os
 from discord_setting import bot
+from bot import command
 
 LOG_FILENAME = "log.log"
 logging.basicConfig(
