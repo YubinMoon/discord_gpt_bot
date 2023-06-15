@@ -1,11 +1,7 @@
 import logging
 import time
 import discord
-import json
-from discord.ext import commands
 import os
-from GPT import GPT
-from discord_setting import gpt_container
 from .utils import HandleErrors, data_to_json, UnValidCommandError, GPTHandler
 
 logger = logging.getLogger(__name__)
@@ -69,7 +65,7 @@ class ImageHandler(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
 
-    @HandleErrors("이미지 생성 중 문제가 발생했어요!")
+    @HandleErrors("GPT가 손을 삐끗했어요!")
     async def run(self, *args: tuple[str]):
         prompt = " ".join(args)
         file_name = await self.gpt.short_chat(
@@ -143,6 +139,7 @@ class HistoryHandler(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
 
+    @HandleErrors("기록을 탐색하다 에러가 발생했어요!")
     async def run(self, *args: tuple[str]):
         if not args:
             await self.show_history_and_reply()
