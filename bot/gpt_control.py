@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 MAX_TEXT_LENGTH = 1900
 
 
-class SendByWord(GPTHandler):
+class ChatHandler(GPTHandler):
     def __init__(self, discord_message: discord.Message):
         super().__init__(discord_message)
         self.text: str = ""
@@ -63,6 +63,14 @@ class SendByWord(GPTHandler):
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(self.text.replace(". ", ".\n"))
         await self.msg.add_files(discord.File(file_path, filename=file_name))
+
+
+class ImageHandler(GPTHandler):
+    def __init__(self, discord_message: discord.Message):
+        super().__init__(discord_message)
+        self.text: str = ""
+        self.now: int = 0
+        self.msg: discord.Message
 
 
 class ConfigHandler(GPTHandler):
@@ -119,3 +127,31 @@ class RoleHandler(GPTHandler):
     async def set_system_text_and_reply(self, role_text: str = ""):
         self.gpt.setting.set_setting("system_text", role_text)
         await self.discord_message.reply("역할 정보가 변경되었어요.")
+
+
+class HistoryHandler(GPTHandler):
+    def __init__(self, discord_message: discord.Message):
+        super().__init__(discord_message)
+
+    async def run(self, *args: tuple[str]):
+        if not args:
+            await self.show_history_and_reply()
+        elif args[0] == "clear":
+            await self.clear_history_and_reply()
+        else:
+            await self.discord_message.reply("```!history (clear)``` 형태로 입력해주세요.")
+
+    async def show_history_and_reply(self):
+        if self.gpt.message_box:
+            await self.reply(
+                f"```{data_to_json(self.gpt.message_box.make_messages())}```\n`!history clear` 로 초기화 할 수 있어요!"
+            )
+        else:
+            await self.reply("기록이 없어요. \n대화를 시작해 볼까요?")
+
+    async def clear_history_and_reply(self):
+        if self.gpt.message_box:
+            self.gpt.message_box.clear()
+            await self.reply("기억을 초기화 했어요.")
+        else:
+            await self.reply("기록이 없어요. \n대화를 시작해 볼까요?")

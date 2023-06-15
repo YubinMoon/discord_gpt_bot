@@ -6,7 +6,6 @@ import logging
 import discord
 import discord.errors
 from .utils import UnValidCommandError, HandleErrors
-from .gpt_control import SendByWord
 from . import gpt_control
 
 logger = logging.getLogger(__name__)
@@ -29,14 +28,14 @@ async def on_message(message: discord.Message):
         return
 
     if "gpt" in message.channel.name:
-        await SendByWord(message).run()
+        await gpt_control.ChatHandler(message).run()
         return
 
 
 @bot.command(name="ask")
 async def ask(ctx: commands.context.Context, *, arg: str):
     ctx.message.content = arg
-    await SendByWord(ctx.message).run()
+    await gpt_control.ChatHandler(ctx.message).run()
 
 
 @bot.command(name="clear")
@@ -62,21 +61,8 @@ async def role_config(ctx: commands.context.Context, *args):
 
 
 @bot.command(name="history")
-async def show_history(ctx: commands.context.Context):
-    print(gpt_container)
-    await handle_show_history(ctx)
-
-
-async def handle_show_history(ctx: commands.context.Context):
-    gpt = gpt_container.get_gpt(ctx.channel.id)
-    if gpt.message_box:
-        await ctx.channel.send(f"```{data_to_json(gpt.message_box.make_messages())}```")
-    else:
-        await ctx.channel.send("기록이 없어요. \n대화를 시작해 볼까요?")
-
-
-def data_to_json(data):
-    return json.dumps(data, indent=2, ensure_ascii=False)
+async def show_history(ctx: commands.context.Context, *args):
+    await gpt_control.HistoryHandler(ctx.message).run(*args)
 
 
 @bot.command(name="img")
