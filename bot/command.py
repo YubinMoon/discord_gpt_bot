@@ -36,16 +36,9 @@ async def ask(ctx: commands.context.Context, *, arg: str):
     await gpt_control.ChatHandler(ctx.message).run()
 
 
-@bot.command(name="clear")
-async def clear_history(ctx: commands.context.Context):
-    gpt = gpt_container.get_gpt(ctx.channel.id)
-    gpt.clear_history()
-    await ctx.channel.send("기억이 초기화되었습니다.")
-
-
 @bot.command(name="ping")
 async def test(ctx: commands.context.Context, *args):
-    await ctx.channel.send("pong!")
+    await ctx.message.reply("pong!")
 
 
 @bot.command(name="config")
