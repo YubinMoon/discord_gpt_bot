@@ -1,6 +1,7 @@
 import aiohttp
 import logging
 import json
+import httpx
 from functools import wraps
 
 from .setting import Setting
@@ -25,16 +26,16 @@ class Chat:
         return await self.chat_request()
 
     async def chat_request(self) -> str:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
+        async with httpx.AsyncClient() as session:
+            response = await session.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers=self.header,
                 json=self.data,
-            ) as response:
-                resp = await response.json()
-                if "error" in resp:
-                    raise ChatAPIError(resp.get("error"))
-                return resp.get("choices")[0].get("message").get("content")
+            )
+            resp = response.json()
+            if "error" in resp:
+                raise ChatAPIError(resp.get("error"))
+            return resp.get("choices")[0].get("message").get("content")
 
     def make_data(self, messages: list[dict[str, str]], setting: Setting):
         return {
