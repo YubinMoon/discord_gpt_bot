@@ -2,12 +2,9 @@ import os
 from unittest import IsolatedAsyncioTestCase
 from GPT import gpt
 from GPT.message import MessageLine
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
-class ChatTests(IsolatedAsyncioTestCase):
+class GptTests(IsolatedAsyncioTestCase):
     def setUp(self):
         self.api_key = os.environ["OPENAI_API_KEY"]
 
@@ -15,7 +12,7 @@ class ChatTests(IsolatedAsyncioTestCase):
         chat = gpt.GPT(api_key=self.api_key)
         message = MessageLine(role="assistance")
         async for msg in chat.get_stream_chat("안녕?"):
-            message += MessageLine(content=msg)
+            message += msg
         self.assertGreater(len(message.content), 0)
 
     async def test_short_chat(self):

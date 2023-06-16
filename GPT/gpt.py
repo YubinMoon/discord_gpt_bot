@@ -6,6 +6,7 @@ import aiohttp
 import traceback
 import datetime
 import io
+from typing import AsyncIterator
 from dotenv import load_dotenv
 from .setting import Setting
 from .chat import stream_chat_request, Chat, ChatStream
@@ -25,20 +26,18 @@ class GPT:
             os.mkdir("img")
         self.clear_history()
 
-    async def get_stream_chat(self, _message: str):
+    async def get_stream_chat(self, _message: str) -> AsyncIterator[MessageLine]:
         self.is_timeout()
         self.message_box.add_message(MessageLine(role="user", content=_message))
         messages = self.message_box.make_messages(setting=self.setting)
+        chat_api = ChatStream(api_key=self.api_key)
         logger.info(f"message: {messages}")
 
         collected_messages = MessageLine()
         # async for data in self.get_chat_stream_data(messages):
-        async for data in self.get_chat_stream_with_function(
-            messages, self.make_dummy_function()
-        ):
-            new_message = MessageLine(data=data)
-            collected_messages += new_message
-            yield new_message.content
+        async for data in chat_api.run(messages, setting=self.setting):
+            collected_messages = MessageLine(data=data)
+            yield collected_messages
 
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
@@ -85,7 +84,7 @@ class GPT:
                 "top_p": self.setting.top_p,
                 "stream": True,
             }
-            async for data in stream_chat_request(headers=headers, data=data):
+            async for data in ChatStream.run(headers=headers, data=data):
                 yield data
 
         except aiohttp.ClientConnectionError:

@@ -2,8 +2,9 @@ import aiohttp
 import logging
 import json
 import httpx
+from httpx._models import Response
 from functools import wraps
-
+from .message import MessageBox
 from .setting import Setting
 from typing import AsyncIterator
 
@@ -21,7 +22,9 @@ class Chat:
             "Authorization": f"Bearer {api_key}",
         }
 
-    async def run(self, messages: list[dict[str, str]], setting: Setting) -> str:
+    async def run(
+        self, messages: list[dict[str, str]] | MessageBox, setting: Setting
+    ) -> str:
         self.data = self.make_data(messages=messages, setting=setting)
         return await self.chat_request()
 
@@ -37,7 +40,9 @@ class Chat:
                 raise ChatAPIError(resp.get("error"))
             return resp.get("choices")[0].get("message").get("content")
 
-    def make_data(self, messages: list[dict[str, str]], setting: Setting):
+    def make_data(self, messages: list[dict[str, str]] | MessageBox, setting: Setting):
+        if isinstance(messages, MessageBox):
+            messages = messages.make_messages(setting=setting)
         return {
             "model": setting.model,
             "messages": messages,
@@ -54,22 +59,20 @@ class ChatStream(Chat):
         self, messages: list[dict[str, str]], setting: Setting
     ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
         self.data = self.make_data(messages=messages, setting=setting)
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
+        async with httpx.AsyncClient() as session:
+            async with session.stream(
+                "POST",
                 "https://api.openai.com/v1/chat/completions",
                 headers=self.header,
                 json=self.data,
             ) as response:
-                if response.status == 400:
+                if response.status_code == 400:
                     await self.bad_request(response=response)
-                # 스트림의 응답을 처리합니다.
                 async for resp in self.process_stream_request(resp=response):
                     yield resp
 
-    async def process_stream_request(
-        self, resp: aiohttp.ClientResponse
-    ) -> AsyncIterator[str]:
-        async for chunk in resp.content.iter_any():
+    async def process_stream_request(self, resp: Response) -> AsyncIterator[str]:
+        async for chunk in resp.aiter_bytes():
             chunk_str = chunk.decode("utf-8")
             async for resp in self.get_data_from_chunk(chunk_str=chunk_str):
                 yield resp
@@ -85,9 +88,11 @@ class ChatStream(Chat):
                 response = data_dict["choices"][0]
                 yield response  # {"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}
 
-    async def bad_request(self, response: aiohttp.ClientResponse):
-        resp = await response.json()
-        raise ChatAPIError(resp.get("error"))
+    async def bad_request(self, response: Response):
+        resp = await response.aread()
+        text_data = resp.decode("utf-8")
+        data = json.loads(text_data)
+        raise ChatAPIError(data.get("error"))
 
     def make_data(self, messages: list[dict[str, str]], setting: Setting):
         data = super().make_data(messages=messages, setting=setting)
