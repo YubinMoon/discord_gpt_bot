@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class ChatTests(IsolatedAsyncioTestCase):
+class GptboxTests(IsolatedAsyncioTestCase):
     def setUp(self):
         self.api_key = os.environ["OPENAI_API_KEY"]
 

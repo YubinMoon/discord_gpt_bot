@@ -81,15 +81,28 @@ class MessageBox:
         messages = []
         if not setting:
             return [message.make_message() for message in self.messaes]
-        if setting.system_text:
-            messages = [[MessageLine(role="system", content=setting.system_text)]]
-        while setting.max_token < Tokener.num_tokens_from_messages(
-            messages=self.convert_messages(messages=[*messages, *self.messaes]),
-            model=setting.model,
-        ):
+        while self.get_token(setting) > setting.max_token:
             self.messaes = self.messaes[1:]
-        messages += self.messaes
+        messages = [
+            MessageLine(role="system", content=setting.system_text),
+            *self.messaes,
+        ]
         return self.convert_messages(messages)
+
+    def get_token(self, setting: Setting | None = None) -> int:
+        if not setting:
+            return Tokener.num_tokens_from_messages(
+                messages=self.convert_messages(messages=self.messaes),
+            )
+        return Tokener.num_tokens_from_messages(
+            messages=self.convert_messages(
+                messages=[
+                    MessageLine(role="system", content=setting.system_text),
+                    *self.messaes,
+                ]
+            ),
+            model=setting.model,
+        )
 
     def convert_messages(self, messages: list[MessageLine]) -> list[dict[str, str]]:
         return [message.make_message() for message in messages]

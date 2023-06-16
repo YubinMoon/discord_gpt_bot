@@ -5,7 +5,9 @@ class Tokener:
     encoding: tiktoken.Encoding
 
     @classmethod
-    def num_tokens_from_messages(self, messages: list, model: str) -> int:
+    def num_tokens_from_messages(
+        self, messages: list, model: str = "gpt-3.5-turbo-0613"
+    ) -> int:
         try:
             self.encoding = tiktoken.encoding_for_model(model)
         except KeyError:

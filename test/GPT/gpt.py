@@ -2,6 +2,9 @@ import os
 from unittest import IsolatedAsyncioTestCase
 from GPT import gpt
 from GPT.message import MessageLine
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class GptTests(IsolatedAsyncioTestCase):
