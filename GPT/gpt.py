@@ -42,62 +42,6 @@ class GPT:
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
 
-    async def get_chat_stream_with_function(self, messages: list, function: list):
-        try:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-            data = {
-                "model": self.setting.model,
-                "messages": messages,
-                "functions": function,
-                "function_call": "auto",
-                "temperature": self.setting.temperature,
-                "top_p": self.setting.top_p,
-                "stream": True,
-            }
-            async for data in stream_chat_request(headers=headers, data=data):
-                yield data
-
-        except aiohttp.ClientConnectionError:
-            logger.exception(traceback.print_exc())
-            yield "API 연결 실패"
-        except aiohttp.ClientResponseError:
-            logger.exception(traceback.print_exc())
-            yield "API 응답 오류"
-        except Exception as e:
-            logger.exception(traceback.print_exc())
-            yield "API 에러"
-            raise openai.error.APIConnectionError("연결 실패") from e
-
-    async def get_chat_stream_data(self, messages: list):
-        try:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-            data = {
-                "model": self.setting.model,
-                "messages": messages,
-                "temperature": self.setting.temperature,
-                "top_p": self.setting.top_p,
-                "stream": True,
-            }
-            async for data in ChatStream.run(headers=headers, data=data):
-                yield data
-
-        except aiohttp.ClientConnectionError:
-            logger.exception(traceback.print_exc())
-            yield "API 연결 실패"
-        except aiohttp.ClientResponseError:
-            logger.exception(traceback.print_exc())
-            yield "API 응답 오류"
-        except Exception as e:
-            logger.exception(traceback.print_exc())
-            yield "API 에러"
-            raise openai.error.APIConnectionError("연결 실패") from e
-
     async def short_chat(self, message: str, system: str | None = None) -> str:
         messages: list[MessageLine] = []
         if system:
