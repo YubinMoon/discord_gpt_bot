@@ -32,19 +32,19 @@ class Parameter:
 
 class ParameterManager:
     def __init__(self):
-        self.parameters: list[Parameter] = []
+        self.properties: list[Parameter] = []
         self.required_names: list[str] = []
 
     def __repr__(self) -> str:
-        return f"<ParameterManager {self.parameters}>"
+        return f"<ParameterManager {self.properties}>"
 
     def add_parameter(
         self,
         name: str,
         parameter_type: ParameterType,
-        description: str,
+        description: str = "",
         enum: list | None = None,
-        required: bool = True,
+        required: bool = False,
     ):
         parameter = Parameter(
             name=name,
@@ -52,19 +52,22 @@ class ParameterManager:
             description=description,
             enum=enum,
         )
-        self.parameters.append(parameter)
+        self.properties.append(parameter)
         if required:
             self.required_names.append(name)
 
     def make_dict(self):
-        parameters = {}
-        for parameter in self.parameters:
-            parameters.update(parameter.make_dict())
-        return {
+        properties = {}
+        for propertie in self.properties:
+            properties.update(propertie.make_dict())
+
+        parameters = {
             "type": "object",
-            "parameters": parameters,
-            "required": self.required_names,
+            "properties": properties,
         }
+        if self.required_names:
+            parameters["required"] = self.required_names
+        return parameters
 
 
 class Function:
@@ -74,6 +77,9 @@ class Function:
     def __init__(self):
         self.parameters = ParameterManager()
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} name={self.name} description={self.description} >"
+
     def set_parameter(self):
         raise NotImplementedError
 
@@ -81,18 +87,33 @@ class Function:
         raise NotImplementedError
 
     def make_dict(self):
-        if not self.name or not self.description:
-            ValueError("name or description is not set")
-        return {
+        if not self.name:
+            ValueError("name is not set")
+        func = {
             "name": self.name,
-            "description": self.description,
             "parameters": self.parameters.make_dict(),
         }
+        if self.description:
+            func["description"] = self.description
+        return func
 
 
 class Myfunction(Function):
     name = "get_current_weather"
     description = "Get the current weather in a given location"
+
+    def set_parameter(self):
+        self.parameters.add_parameter(
+            name="location",
+            parameter_type=ParameterType.string,
+            description="The city and state, e.g. San Francisco, CA",
+            required=True,
+        )
+        self.parameters.add_parameter(
+            name="unit",
+            parameter_type=ParameterType.string,
+            enum=["celsius", "fahrenheit"],
+        )
 
     async def run():
         pass
@@ -100,10 +121,18 @@ class Myfunction(Function):
 
 class FunctionManager:
     def __init__(self):
-        self.function_list = []
+        self.function_list: list[Function] = []
         self.find_subclasses()
 
     def find_subclasses(self):
         for cls in Function.__subclasses__():
             if cls not in self.function_list:
-                self.function_list.append(cls)
+                obj = cls()
+                obj.set_parameter()
+                self.function_list.append(obj)
+
+    def make_dict(self):
+        functions = []
+        for function in self.function_list:
+            functions.append(function.make_dict())
+        return functions
