@@ -24,24 +24,24 @@ class GptControlTests(IsolatedAsyncioTestCase):
         self.discord_message.content = "안녕?"
         self.discord_message.reply.return_value = self.msg
 
-    # async def test_discord_chat(self):
-    #     await gpt_control.ChatHandler(self.discord_message).run()
-    #     self.discord_message.reply.assert_called_once_with("대답 중...")
-    #     self.msg.edit.assert_called()
-    #     self.assertGreater(len(self.msg.edit.call_args.kwargs["content"]), 5)
+    async def test_discord_chat(self):
+        await gpt_control.ChatHandler(self.discord_message).run()
+        self.discord_message.reply.assert_called_once_with("대답 중...")
+        self.msg.edit.assert_called()
+        self.assertGreater(len(self.msg.edit.call_args.kwargs["content"]), 5)
 
-    # async def test_long_message(self):
-    #     handler = gpt_control.ChatHandler(self.discord_message)
-    #     handler.msg = self.msg
+    async def test_long_message(self):
+        handler = gpt_control.ChatHandler(self.discord_message)
+        handler.msg = self.msg
 
-    #     with patch("os.path.isdir", self.isdir) as mock_isdir:
-    #         with patch("os.mkdir", self.mkdir) as mock_mkdir:
-    #             with patch("builtins.open", mock_open(read_data="data")) as mock_file:
-    #                 await handler.send_to_file()
-    #     mock_isdir.assert_called_once_with("temp")
-    #     mock_mkdir.assert_called_once_with("temp")
-    #     mock_file.assert_called()
-    #     self.msg.add_files.assert_called()
+        with patch("os.path.isdir", self.isdir) as mock_isdir:
+            with patch("os.mkdir", self.mkdir) as mock_mkdir:
+                with patch("builtins.open", mock_open(read_data="data")) as mock_file:
+                    await handler.send_to_file()
+        mock_isdir.assert_called_once_with("temp")
+        mock_mkdir.assert_called_once_with("temp")
+        mock_file.assert_called()
+        self.msg.add_files.assert_called()
 
     async def test_config(self):
         setting_text = '```{\n  "model": "gpt-3.5-turbo-0613",\n  "system_text": "",\n  "max_token": 3000,\n  "temperature": 1.0,\n  "top_p": 1.0,\n  "keep_min": 10\n}```'
