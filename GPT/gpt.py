@@ -36,7 +36,7 @@ class GPT:
         collected_messages = MessageLine()
         # async for data in self.get_chat_stream_data(messages):
         async for data in chat_api.run(messages, setting=self.setting):
-            collected_messages = MessageLine(data=data)
+            collected_messages += MessageLine(data=data)
             yield collected_messages
 
         logger.info(f"request: {collected_messages}")
