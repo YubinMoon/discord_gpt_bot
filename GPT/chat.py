@@ -100,6 +100,24 @@ class ChatStream(Chat):
         return data
 
 
+class ChatStreamFunction(ChatStream):
+    def __init__(self, api_key: str):
+        super().__init__(api_key=api_key)
+
+    async def run(
+        self, messages: list[dict[str, str]], function: list, setting: Setting
+    ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
+        self.function = function
+        async for message in super().run(messages=messages, setting=setting):
+            yield message
+
+    def make_data(self, messages: list[dict[str, str]], setting: Setting):
+        data = super().make_data(messages=messages, setting=setting)
+        data["functions"] = self.function
+        data["function_call"] = "auto"
+        return data
+
+
 async def stream_chat_request(headers: dict, data: dict) -> AsyncIterator[str]:
     async with aiohttp.ClientSession() as session:
         async with session.post(

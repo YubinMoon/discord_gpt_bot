@@ -51,3 +51,35 @@ class ChatTests(IsolatedAsyncioTestCase):
                 message += MessageLine(data=data)
         error_dict = context.exception.args[0]
         self.assertEqual(error_dict.get("type"), "invalid_request_error")
+
+    async def test_run_stream_function(self):
+        stream_api = chat.ChatStreamFunction(api_key=self.api_key)
+        self.message_box.add_message(MessageLine(role="user", content="오늘 날씨 어때?"))
+        message = MessageLine()
+        async for data in stream_api.run(
+            self.message_box, self.make_dummy_function(), self.setting
+        ):
+            message += MessageLine(data=data)
+        self.assertEqual(message.finish_reason, "function_call")
+
+    def make_dummy_function(self) -> list:
+        return [
+            {
+                "name": "get_current_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "unit": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                        },
+                    },
+                    "required": ["location"],
+                },
+            }
+        ]
