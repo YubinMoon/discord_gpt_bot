@@ -1,3 +1,4 @@
+import json
 from GPT.message import AssistanceMessage, FunctionMessage
 
 
@@ -35,7 +36,7 @@ class Parameter:
 
 class ParameterManager:
     def __init__(self):
-        self.properties: list[Parameter] = []
+        self.properties: dict[str, Parameter] = {}
         self.required_names: list[str] = []
 
     def __repr__(self) -> str:
@@ -55,13 +56,18 @@ class ParameterManager:
             description=description,
             enum=enum,
         )
-        self.properties.append(parameter)
+        self.properties.update({name: parameter})
         if required:
             self.required_names.append(name)
 
+    def type_check(self, parameters: dict[str, str]):
+        for required_parameter in self.required_names:
+            if required_parameter not in parameters:
+                raise ValueError(f"{required_parameter} is required")
+
     def make_dict(self):
         properties = {}
-        for propertie in self.properties:
+        for propertie in self.properties.values():
             properties.update(propertie.make_dict())
 
         parameters = {
@@ -118,8 +124,8 @@ class TestFunction(Function):
             enum=["celsius", "fahrenheit"],
         )
 
-    async def run():
-        pass
+    async def run(self, location: str, unit: str = "none"):
+        return {"location": location, "unit": unit}
 
 
 class FunctionManager:
@@ -140,5 +146,23 @@ class FunctionManager:
             functions.append(function.make_dict())
         return functions
 
-    # async def run(self,message:AssistanceMessage):
-    #     try:
+    async def run(self, message: AssistanceMessage):
+        if not isinstance(message, AssistanceMessage):
+            raise TypeError("message must be FunctionMessage type")
+        name = message.function_call.get("name", "")
+        if name not in self.function_list:
+            raise ValueError(f"{name} is not found")
+        arguments = message.function_call.get("arguments", {})
+        if arguments:
+            arguments = json.loads(arguments)
+        result = await self.type_check_and_run(name, arguments)
+        result_message = FunctionMessage(name=name, content=result)
+        return result_message
+
+    async def type_check_and_run(self, name: str, arguments: dict[str, str]):
+        try:
+            function = self.function_list[name]
+            function.parameters.type_check(arguments)
+            return await function.run(**arguments)
+        except Exception as e:
+            return e

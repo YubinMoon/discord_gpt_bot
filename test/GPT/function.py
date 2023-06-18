@@ -50,3 +50,4 @@ class FunctionTests(IsolatedAsyncioTestCase):
                 "finish_reason": "function_call",
             }
         )
+        result = await self.function_manager.run(function_message)

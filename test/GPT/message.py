@@ -82,8 +82,8 @@ class MessageTests(IsolatedAsyncioTestCase):
 
     async def test_message_box(self):
         self.msg_box.add_message(self.usr_msg1)
-        self.msg_box.add_message(self.sys_msg1)
         self.msg_box.add_message(self.asi_msg1)
+        self.msg_box.add_message(self.sys_msg1)
         self.assertEqual(len(self.msg_box), 3)
         msg1 = self.msg_box[1]
         msg2 = self.msg_box[1:][0]
@@ -98,8 +98,8 @@ class MessageTests(IsolatedAsyncioTestCase):
         first = len(self.msg_box.make_messages(setting=self.setting))
         self.setting.set_setting("system_text", "당신은 친절한 AI 입니다.")
         second = len(self.msg_box.make_messages(setting=self.setting))
-        self.assertLess(first, 18)
-        self.assertLess(second, 18)
+        self.assertEqual(first, 18)
+        self.assertEqual(second, 18)
 
     async def test_get_token(self):
         self.setting.set_setting("system_text", "당신은 친절한 AI 입니다.")

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class BaseMessage:
     def __init__(self, content: str):
         self.role: str = ""
-        self.content: str = content
+        self.content: str = content if content else ""
 
     def make_message(self) -> dict[str, str]:
         return {"role": self.role, "content": self.content}
@@ -48,7 +48,7 @@ class AssistanceMessage(BaseMessage):
 
     def __init__(self, data: dict[str, dict[str, str] | str] = {}):
         delta = data.get("delta", {})
-        super().__init__(content=delta.get("content", ""))
+        super().__init__(content=delta.get("content"))
         self.function_call = delta.get("function_call", {})
         self.finish_reason = data.get("finish_reason", "null")
         self.role = "assistant"
