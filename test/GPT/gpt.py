@@ -1,7 +1,7 @@
 import os
 from unittest import IsolatedAsyncioTestCase
 from GPT import gpt
-from GPT.message import MessageLine
+from GPT.message import BaseMessage, AssistanceMessage
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,7 +13,7 @@ class GptTests(IsolatedAsyncioTestCase):
 
     async def test_stream_chat(self):
         chat = gpt.GPT(api_key=self.api_key)
-        message = MessageLine(role="assistance")
+        message = AssistanceMessage()
         async for msg in chat.get_stream_chat("안녕?"):
             message += msg
         self.assertGreater(len(message.content), 0)

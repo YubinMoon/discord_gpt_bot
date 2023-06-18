@@ -1,6 +1,8 @@
 import logging
 import unittest
-from test import *
+
+# from test import *
+from test.GPT.function import *
 
 logging.disable(logging.CRITICAL)
 

@@ -1,3 +1,6 @@
+from GPT.message import AssistanceMessage, FunctionMessage
+
+
 class ParameterType:
     string = "string"
     integer = "integer"
@@ -98,7 +101,7 @@ class Function:
         return func
 
 
-class Myfunction(Function):
+class TestFunction(Function):
     name = "get_current_weather"
     description = "Get the current weather in a given location"
 
@@ -121,18 +124,21 @@ class Myfunction(Function):
 
 class FunctionManager:
     def __init__(self):
-        self.function_list: list[Function] = []
-        self.find_subclasses()
+        self.function_list: dict[str, Function] = {}
 
-    def find_subclasses(self):
-        for cls in Function.__subclasses__():
-            if cls not in self.function_list:
-                obj = cls()
-                obj.set_parameter()
-                self.function_list.append(obj)
+    def add_function(self, function: Function):
+        if isinstance(function, Function):
+            if function not in self.function_list:
+                function.set_parameter()
+                self.function_list.update({function.name: function})
+        else:
+            raise TypeError("function must be Function type")
 
     def make_dict(self):
         functions = []
-        for function in self.function_list:
+        for function in self.function_list.values():
             functions.append(function.make_dict())
         return functions
+
+    # async def run(self,message:AssistanceMessage):
+    #     try:

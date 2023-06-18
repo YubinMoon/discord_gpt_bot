@@ -1,7 +1,11 @@
 import os
 from unittest import IsolatedAsyncioTestCase
 from GPT import chat
-from GPT.message import MessageLine, MessageBox
+from GPT.message import (
+    MessageBox,
+    UserMessage,
+    AssistanceMessage,
+)
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +19,7 @@ class ChatTests(IsolatedAsyncioTestCase):
             {"role": "user", "content": "안녕?"},
         ]
         self.message_box = MessageBox()
-        self.message_box.add_message(MessageLine(role="user", content="안녕?"))
+        self.message_box.add_message(UserMessage(content="안녕?"))
 
     async def test_run(self):
         chat_api = chat.Chat(api_key=self.api_key)
@@ -31,35 +35,35 @@ class ChatTests(IsolatedAsyncioTestCase):
 
     async def test_run_stream(self):
         stream_api = chat.ChatStream(api_key=self.api_key)
-        message = MessageLine()
+        message = AssistanceMessage()
         async for data in stream_api.run(self.messages, self.setting):
-            message += MessageLine(data=data)
+            message += AssistanceMessage(data=data)
         self.assertGreater(len(message.content), 0)
 
     async def test_run_stream_message_box(self):
         stream_api = chat.ChatStream(api_key=self.api_key)
-        message = MessageLine()
+        message = AssistanceMessage()
         async for data in stream_api.run(self.message_box, self.setting):
-            message += MessageLine(data=data)
+            message += AssistanceMessage(data=data)
         self.assertGreater(len(message.content), 0)
 
     async def test_run_stream_no_message(self):
         stream_api = chat.ChatStream(api_key=self.api_key)
-        message = MessageLine()
+        message = AssistanceMessage()
         with self.assertRaises(chat.ChatAPIError) as context:
             async for data in stream_api.run([], self.setting):
-                message += MessageLine(data=data)
+                message += AssistanceMessage(data=data)
         error_dict = context.exception.args[0]
         self.assertEqual(error_dict.get("type"), "invalid_request_error")
 
     async def test_run_stream_function(self):
         stream_api = chat.ChatStreamFunction(api_key=self.api_key)
-        self.message_box.add_message(MessageLine(role="user", content="오늘 날씨 어때?"))
-        message = MessageLine()
+        self.message_box.add_message(UserMessage(content="오늘 날씨 어때?"))
+        message = AssistanceMessage()
         async for data in stream_api.run(
             self.message_box, self.make_dummy_function(), self.setting
         ):
-            message += MessageLine(data=data)
+            message += AssistanceMessage(data=data)
         self.assertEqual(message.finish_reason, "function_call")
 
     def make_dummy_function(self) -> list:

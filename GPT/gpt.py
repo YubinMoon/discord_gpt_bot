@@ -10,7 +10,13 @@ from typing import AsyncIterator
 from dotenv import load_dotenv
 from .setting import Setting
 from .chat import stream_chat_request, Chat, ChatStream
-from .message import MessageLine, MessageBox
+from .message import (
+    BaseMessage,
+    SystemMessage,
+    UserMessage,
+    AssistanceMessage,
+    MessageBox,
+)
 from .token import Tokener
 
 logger = logging.getLogger(__name__)
@@ -26,27 +32,27 @@ class GPT:
             os.mkdir("img")
         self.clear_history()
 
-    async def get_stream_chat(self, _message: str) -> AsyncIterator[MessageLine]:
+    async def get_stream_chat(self, _message: str) -> AsyncIterator[AssistanceMessage]:
         self.is_timeout()
-        self.message_box.add_message(MessageLine(role="user", content=_message))
+        self.message_box.add_message(UserMessage(content=_message))
         messages = self.message_box.make_messages(setting=self.setting)
         chat_api = ChatStream(api_key=self.api_key)
         logger.info(f"message: {messages}")
 
-        collected_messages = MessageLine()
+        collected_messages = AssistanceMessage()
         # async for data in self.get_chat_stream_data(messages):
         async for data in chat_api.run(messages, setting=self.setting):
-            collected_messages += MessageLine(data=data)
+            collected_messages += AssistanceMessage(data=data)
             yield collected_messages
 
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
 
     async def short_chat(self, message: str, system: str | None = None) -> str:
-        messages: list[MessageLine] = []
+        messages: list[BaseMessage] = []
         if system:
-            messages.append(MessageLine(role="system", content=system))
-        messages.append(MessageLine(role="user", content=message))
+            messages.append(SystemMessage(content=system))
+        messages.append(UserMessage(content=message))
         messages = [message.make_message() for message in messages]
         chat_api = Chat(api_key=self.api_key)
         logger.info(f"message: {messages}")

@@ -3,7 +3,7 @@ from unittest import IsolatedAsyncioTestCase
 from unittest.mock import Mock, AsyncMock, mock_open, patch
 from bot import gpt_control
 from discord import Message
-from GPT.message import MessageLine
+from GPT.message import UserMessage
 
 
 class GptControlTests(IsolatedAsyncioTestCase):
@@ -93,7 +93,7 @@ class GptControlTests(IsolatedAsyncioTestCase):
         self.assertEqual(
             self.discord_message.reply.call_args.args[0], "기록이 없어요. \n대화를 시작해 볼까요?"
         )
-        handler.gpt.message_box.add_message(MessageLine(role="asdf", content="asdf"))
+        handler.gpt.message_box.add_message(UserMessage(role="asdf", content="asdf"))
         await handler.run()
         self.assertNotEqual(
             self.discord_message.reply.call_args.args[0], "기록이 없어요. \n대화를 시작해 볼까요?"

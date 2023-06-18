@@ -14,9 +14,9 @@ class TokenTests(TestCase):
 
     def setUp(self):
         self.setting = setting.Setting()
-        msg1 = message.MessageLine(data=self.data1)
-        msg2 = message.MessageLine(data=self.data2)
-        msg3 = message.MessageLine(data=self.data3)
+        msg1 = message.AssistanceMessage(data=self.data1)
+        msg2 = message.AssistanceMessage(data=self.data2)
+        msg3 = message.AssistanceMessage(data=self.data3)
         self.msg_box = message.MessageBox()
         self.msg_box.add_message(msg1)
         self.msg_box.add_message(msg2)
