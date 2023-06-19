@@ -1,15 +1,12 @@
-import openai.error
 import time
 import logging
 import os
 import aiohttp
-import traceback
 import datetime
 import io
 from typing import AsyncIterator
-from dotenv import load_dotenv
 from .setting import Setting
-from .chat import stream_chat_request, Chat, ChatStream
+from .chat import Chat, ChatStream
 from .message import (
     BaseMessage,
     SystemMessage,
@@ -17,6 +14,7 @@ from .message import (
     AssistanceMessage,
     MessageBox,
 )
+from .function import FunctionManager
 from .token import Tokener
 
 logger = logging.getLogger(__name__)
@@ -105,25 +103,3 @@ class GPT:
         if time.time() - self.lastRequestTime > self.setting.keep_min * 60:
             self.clear_history()
         self.lastRequestTime = time.time()
-
-    def make_dummy_function(self) -> list:
-        return [
-            {
-                "name": "get_current_weather",
-                "description": "Get the current weather in a given location",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "The city and state, e.g. San Francisco, CA",
-                        },
-                        "unit": {
-                            "type": "string",
-                            "enum": ["celsius", "fahrenheit"],
-                        },
-                    },
-                    "required": ["location"],
-                },
-            }
-        ]
