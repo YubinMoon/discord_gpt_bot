@@ -2,6 +2,8 @@ import logging
 import time
 import discord
 import os
+import json
+from GPT.message import AssistanceMessage
 from .utils import HandleErrors, data_to_json, UnValidCommandError, GPTHandler
 
 logger = logging.getLogger(__name__)
@@ -30,10 +32,13 @@ class ChatHandler(GPTHandler):
             await self.msg.edit(content="")
 
     async def get_from_gpt_and_send_by_word(self):
+        pre_text = ""
         async for message in self.gpt.get_stream_chat_with_function(
             self.discord_message.content
         ):
-            self.text = message.content
+            if message.finish_reason == AssistanceMessage.FUNCTION_CALL:
+                pre_text += f"function: {message.function_call.get('name')} \n"
+            self.text = pre_text + message.content
             await self.send_after_timer()
 
     async def send_after_timer(self):

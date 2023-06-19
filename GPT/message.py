@@ -96,10 +96,6 @@ class FunctionMessage(BaseMessage):
         return temp
 
 
-class ReturnMessage(BaseMessage):
-    pass
-
-
 class MessageBox:
     def __init__(self):
         self.messaes: list[BaseMessage] = []
