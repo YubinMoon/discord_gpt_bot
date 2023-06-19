@@ -29,7 +29,7 @@ class Chat:
         return await self.chat_request()
 
     async def chat_request(self) -> str:
-        async with httpx.AsyncClient() as session:
+        async with httpx.AsyncClient(timeout=None) as session:
             response = await session.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers=self.header,
@@ -59,7 +59,7 @@ class ChatStream(Chat):
         self, messages: list[dict[str, str]], setting: Setting
     ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
         self.data = self.make_data(messages=messages, setting=setting)
-        async with httpx.AsyncClient() as session:
+        async with httpx.AsyncClient(timeout=None) as session:
             async with session.stream(
                 "POST",
                 "https://api.openai.com/v1/chat/completions",

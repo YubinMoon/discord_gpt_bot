@@ -30,7 +30,9 @@ class ChatHandler(GPTHandler):
             await self.msg.edit(content="")
 
     async def get_from_gpt_and_send_by_word(self):
-        async for message in self.gpt.get_stream_chat(self.discord_message.content):
+        async for message in self.gpt.get_stream_chat_with_function(
+            self.discord_message.content
+        ):
             self.text = message.content
             await self.send_after_timer()
 

@@ -6,15 +6,16 @@ import datetime
 import io
 from typing import AsyncIterator
 from .setting import Setting
-from .chat import Chat, ChatStream
+from .chat import Chat, ChatStream, ChatStreamFunction
 from .message import (
     BaseMessage,
     SystemMessage,
     UserMessage,
     AssistanceMessage,
+    FunctionMessage,
     MessageBox,
 )
-from .function import FunctionManager
+from .function import FunctionManager, TestFunction
 from .token import Tokener
 
 logger = logging.getLogger(__name__)
@@ -25,10 +26,15 @@ class GPT:
         self.setting = Setting(setting_file)
         self.api_key = api_key
         self.message_box = MessageBox()
+        self.function_manager = FunctionManager()
         self.lastRequestTime = time.time()
         if not os.path.isdir("./img"):
             os.mkdir("img")
         self.clear_history()
+        self.set_function()
+
+    def set_function(self):
+        self.function_manager.add_function(TestFunction())
 
     async def get_stream_chat(self, _message: str) -> AsyncIterator[AssistanceMessage]:
         self.is_timeout()
@@ -45,6 +51,32 @@ class GPT:
 
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
+
+    async def get_stream_chat_with_function(
+        self, _message: str
+    ) -> AsyncIterator[AssistanceMessage]:
+        self.is_timeout()
+        self.message_box.add_message(UserMessage(content=_message))
+        function_data = self.function_manager.make_dict()
+        chat_api = ChatStreamFunction(api_key=self.api_key)
+        call_functions = []
+
+        while True:
+            collected_messages = AssistanceMessage()
+            messages = self.message_box.make_messages(setting=self.setting)
+            logger.info(f"message: {messages}")
+            async for data in chat_api.run(
+                messages, function=function_data, setting=self.setting
+            ):
+                collected_messages += AssistanceMessage(data=data)
+                yield collected_messages
+            logger.info(f"request: {collected_messages}")
+            self.message_box.add_message(collected_messages)
+            if collected_messages.finish_reason != AssistanceMessage.FUNCTION_CALL:
+                break
+            function_message = await self.function_manager.run(collected_messages)
+            self.message_box.add_message(function_message)
+            collected_messages.content = function_message.name + "\n"
 
     async def short_chat(self, message: str, system: str | None = None) -> str:
         messages: list[BaseMessage] = []

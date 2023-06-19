@@ -125,7 +125,7 @@ class TestFunction(Function):
         )
 
     async def run(self, location: str, unit: str = "none"):
-        return {"location": location, "unit": unit}
+        return {"whether": "sunny"}
 
 
 class FunctionManager:

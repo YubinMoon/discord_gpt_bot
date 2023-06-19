@@ -60,27 +60,30 @@ class AssistanceMessage(BaseMessage):
         return message
 
     def __str__(self) -> str:
-        return f"< {self.__class__.__name__} role: {self.role}, content: {self.content} finish_reason: {self.finish_reason} >"
+        return f"< {self.__class__.__name__} role: {self.role}, content: {self.content}, function_call: {self.function_call} finish_reason: {self.finish_reason} >"
 
     def __add__(self, other: AssistanceMessage) -> AssistanceMessage:
         temp = copy.deepcopy(self)
         temp.content += other.content
         if other.finish_reason != self.NULL:
             temp.finish_reason = other.finish_reason
-        temp.function_call.update(other.function_call)
+        for key, value in other.function_call.items():
+            if key in temp.function_call:
+                temp.function_call[key] += value
+            else:
+                temp.function_call[key] = value
         return temp
 
 
 class FunctionMessage(BaseMessage):
     def __init__(self, name: str, content: Any):
-        super().__init__(content=content)
+        super().__init__(content=str(content))
         self.role = "function"
         self.name = name
 
     def make_message(self) -> dict[str, str]:
         message = super().make_message()
-        if self.name:
-            message["name"] = self.name
+        message["name"] = self.name
         return message
 
     def __str__(self):
@@ -91,6 +94,10 @@ class FunctionMessage(BaseMessage):
         temp.content += other.content
         temp.name = other.name
         return temp
+
+
+class ReturnMessage(BaseMessage):
+    pass
 
 
 class MessageBox:
@@ -106,14 +113,15 @@ class MessageBox:
             return [message.make_message() for message in self.messaes]
         while self.get_token(setting) > setting.max_token:
             self.messaes = self.messaes[1:]
-        messages = [
-            SystemMessage(content=setting.system_text),
-            *self.messaes,
-        ]
+        if setting.system_text:
+            messages = [
+                SystemMessage(content=setting.system_text),
+            ]
+        messages.extend(self.messaes)
         return self.convert_messages(messages)
 
     def get_token(self, setting: Setting | None = None) -> int:
-        if not setting:
+        if not setting.system_text:
             return Tokener.num_tokens_from_messages(
                 messages=self.convert_messages(messages=self.messaes),
             )

@@ -23,6 +23,7 @@ class Tokener:
     def num_tokens_of_message(self, message: dict) -> int:
         num_tokens = 4  # <im_start>, role/name, \n, content, <im_end>, \n
         for key, value in message.items():
+            value = str(value)
             num_tokens += self.num_tokens_of_key_and_value(key, value)
         return num_tokens
 
