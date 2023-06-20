@@ -3,7 +3,6 @@ import logging
 import json
 import httpx
 from httpx._models import Response
-from functools import wraps
 from .message import MessageBox
 from .setting import Setting
 from typing import AsyncIterator
