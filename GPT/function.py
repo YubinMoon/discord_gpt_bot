@@ -110,7 +110,11 @@ class Function:
 
 class ScheduleFunction(Function):
     name = "schedule_management"
-    description = "SQLite Query Executor for Schedule Management The result of this function is the outcome of the requested query. All results, except for 'error' are considered valid results."
+    description = """
+SQLite Query Executor for Schedule Management The result of this function is the outcome of the requested query.
+You can find the necessary table, and if there isn't one, you can create it yourself.
+All results, except for 'error' are considered valid results.
+    """
 
     def __init__(self):
         super().__init__()
