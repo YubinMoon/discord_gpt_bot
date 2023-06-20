@@ -15,7 +15,7 @@ from .message import (
     FunctionMessage,
     MessageBox,
 )
-from .function import FunctionManager, TestFunction
+from .function import FunctionManager, TestFunction, ScheduleFunction
 from .token import Tokener
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ class GPT:
 
     def set_function(self):
         self.function_manager.add_function(TestFunction())
+        self.function_manager.add_function(ScheduleFunction())
 
     async def get_stream_chat(self, _message: str) -> AsyncIterator[AssistanceMessage]:
         self.is_timeout()

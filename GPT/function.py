@@ -107,6 +107,32 @@ class Function:
         return func
 
 
+class ScheduleFunction(Function):
+    name = "schedule_management"
+    description = "Schedule management and CRUD function"
+
+    def set_parameter(self):
+        self.parameters.add_parameter(
+            name="query",
+            parameter_type=ParameterType.string,
+            description="""The query for schedule management
+SQL query extracting info to answer the user's question.
+SQL should be written using this database schema
+**일정(Event)**
+- event_id: 일정 식별자 (Primary Key)
+- title: 일정 제목
+- description: 일정 설명
+- location: 일정 장소
+- created_at: 일정 생성 일자
+The query should be returned in plain text, not in JSON
+             """,
+            required=True,
+        )
+
+    async def run(self, query: str):
+        return "error"
+
+
 class TestFunction(Function):
     name = "get_current_weather"
     description = "Get the current weather in a given location"
