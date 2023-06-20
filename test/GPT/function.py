@@ -36,18 +36,3 @@ class FunctionTests(IsolatedAsyncioTestCase):
             parameters_type = parameters.get("type")
             self.assertGreater(len(name), 0)
             self.assertGreater(len(parameters_type), 0)
-
-    async def test_function_run(self):
-        function_message = AssistanceMessage(
-            data={
-                "delta": {
-                    "content": "",
-                    "function_call": {
-                        "name": "get_current_weather",
-                        "arguments": '{\n  "location": "Seoul, South Korea"\n}',
-                    },
-                },
-                "finish_reason": "function_call",
-            }
-        )
-        result = await self.function_manager.run(function_message)

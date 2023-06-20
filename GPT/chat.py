@@ -85,7 +85,11 @@ class ChatStream(Chat):
                 if data == "[DONE]":
                     break
                 data_dict = json.loads(data)
-                response = data_dict["choices"][0]
+                try:
+                    response = data_dict["choices"][0]
+                except KeyError as e:
+                    logger.error(data_dict)
+                    raise KeyError(e)
                 yield response  # {"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}
 
     async def bad_request(self, response: Response):

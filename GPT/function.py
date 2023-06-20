@@ -1,3 +1,4 @@
+import sqlite3
 import json
 from GPT.message import AssistanceMessage, FunctionMessage
 
@@ -109,28 +110,29 @@ class Function:
 
 class ScheduleFunction(Function):
     name = "schedule_management"
-    description = "Schedule management and CRUD function"
+    description = "SQLite Query Executor for Schedule Management The result of this function is the outcome of the requested query. All results, except for 'error' are considered valid results."
+
+    def __init__(self):
+        super().__init__()
+        self.con = sqlite3.connect(":memory:")
 
     def set_parameter(self):
         self.parameters.add_parameter(
             name="query",
             parameter_type=ParameterType.string,
-            description="""The query for schedule management
-SQL query extracting info to answer the user's question.
-SQL should be written using this database schema
-**일정(Event)**
-- event_id: 일정 식별자 (Primary Key)
-- title: 일정 제목
-- description: 일정 설명
-- location: 일정 장소
-- created_at: 일정 생성 일자
+            description="""
+The query for schedule management
+You can request SQLite queries to store and retrieve memories. You can create and delete tables, as well as insert, retrieve, update, and delete data. All requests operate as queries using Python's sqlite3.
+The Python function that executes the requested query is cur.execute({query}), so you need to input the necessary variables directly when making the request.
 The query should be returned in plain text, not in JSON
              """,
             required=True,
         )
 
     async def run(self, query: str):
-        return "error"
+        cur = self.con.cursor()
+        cur.execute(query)
+        return cur.fetchall()
 
 
 class TestFunction(Function):

@@ -53,9 +53,7 @@ class GPT:
         logger.info(f"request: {collected_messages}")
         self.message_box.add_message(collected_messages)
 
-    async def get_stream_chat_with_function(
-        self, _message: str
-    ) -> AsyncIterator[AssistanceMessage]:
+    async def get_stream_chat_with_function(self, _message: str) -> AsyncIterator[str]:
         self.is_timeout()
         self.message_box.add_message(UserMessage(content=_message))
         function_data = self.function_manager.make_dict()
@@ -69,12 +67,14 @@ class GPT:
             async for data in chat_api.run(
                 messages, function=function_data, setting=self.setting
             ):
-                collected_messages += AssistanceMessage(data=data)
-                yield collected_messages
+                temp_messages = AssistanceMessage(data=data)
+                yield temp_messages.content
+                collected_messages += temp_messages
             logger.info(f"request: {collected_messages}")
             self.message_box.add_message(collected_messages)
             if collected_messages.finish_reason != AssistanceMessage.FUNCTION_CALL:
                 break
+            yield f"call function: {collected_messages.function_call} \n"
             function_message = await self.function_manager.run(collected_messages)
             self.message_box.add_message(function_message)
             collected_messages.content = function_message.name + "\n"

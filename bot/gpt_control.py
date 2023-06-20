@@ -32,13 +32,10 @@ class ChatHandler(GPTHandler):
             await self.msg.edit(content="")
 
     async def get_from_gpt_and_send_by_word(self):
-        pre_text = ""
         async for message in self.gpt.get_stream_chat_with_function(
             self.discord_message.content
         ):
-            if message.finish_reason == AssistanceMessage.FUNCTION_CALL:
-                pre_text += f"function: {message.function_call.get('name')} \n"
-            self.text = pre_text + message.content
+            self.text += message
             await self.send_after_timer()
 
     async def send_after_timer(self):
