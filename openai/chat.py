@@ -13,7 +13,15 @@ class OpenaiApiError(Exception):
         return self.message
 
 
-class ChatCompletion:
+class Chat:
+    @classmethod
+    async def create(
+        self, header: dict[str, str], data: dict[str, str]
+    ) -> dict[str, str] | AsyncIterator[dict[str, str]]:
+        raise NotImplementedError
+
+
+class ChatCompletion(Chat):
     @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
@@ -30,7 +38,7 @@ class ChatCompletion:
         return response_json
 
 
-class ChatStreamCompletion(ChatCompletion):
+class ChatStreamCompletion(Chat):
     @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
@@ -44,11 +52,11 @@ class ChatStreamCompletion(ChatCompletion):
                 json=data,
             ) as response:
                 async for chunk in response.aiter_text():
-                    for data in self.__handle_chunk(chunk):
+                    for data in self.handle_chunk(chunk):
                         yield data
 
     @classmethod
-    def __handle_chunk(self, chunk: str) -> list[dict[str, str]]:
+    def handle_chunk(self, chunk: str) -> list[dict[str, str]]:
         for data in chunk.split("\n\n"):
             if data.startswith("data: ") and data[6:] != "[DONE]":
                 yield json.loads(data[6:])
