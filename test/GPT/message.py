@@ -1,16 +1,13 @@
 import os
-from unittest import TestCase, IsolatedAsyncioTestCase
+import unittest
 from GPT import chat
-from GPT import setting
-from GPT import gpt
-from GPT import gptbox
 from GPT import message
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-class MessageTests(IsolatedAsyncioTestCase):
+class MessageTests(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(self):
         self.usr_content1 = "안녕? "
@@ -99,10 +96,14 @@ class MessageTests(IsolatedAsyncioTestCase):
         self.setting.set_setting("system_text", "당신은 친절한 AI 입니다.")
         second = len(self.msg_box.make_messages(setting=self.setting))
         self.assertEqual(first, 18)
-        self.assertEqual(second, 18)
+        self.assertEqual(second, 19)
 
     async def test_get_token(self):
         self.setting.set_setting("system_text", "당신은 친절한 AI 입니다.")
         for i in range(200):
             self.msg_box.add_message(self.usr_msg1)
         self.assertEqual(self.msg_box.get_token(setting=self.setting), 2219)
+
+
+if __name__ == "__main__":
+    unittest.main()

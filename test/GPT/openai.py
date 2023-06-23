@@ -8,7 +8,6 @@ load_dotenv()
 
 
 class StaticChatCompletion(ChatCompletion):
-    @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> dict[str, str]:
@@ -41,7 +40,6 @@ class StaticChatCompletion(ChatCompletion):
 
 
 class StaticChatStreamCompletion(ChatStreamCompletion):
-    @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> AsyncIterator[dict[str, str]]:
@@ -184,33 +182,35 @@ class ChatCompletionTest(unittest.IsolatedAsyncioTestCase):
                 {"role": "user", "content": "Hello!"},
             ],
         }
+        self.completion = ChatCompletion()
+        self.stream = ChatStreamCompletion()
 
     async def test_chat_completion(self):
-        result = await ChatCompletion.create(self.header, self.data)
+        result = await self.completion.create(self.header, self.data)
         self.assertGreater(result["usage"]["total_tokens"], 10)
 
     async def test_chat_completion_invalid_api_key(self):
         self.header["Authorization"] = f"Beare abcd"
         with self.assertRaises(OpenaiApiError) as context:
-            await ChatCompletion.create(self.header, self.data)
+            await self.completion.create(self.header, self.data)
         self.assertIn("API key", context.exception.message)
 
     async def test_completion_invalid_model(self):
         self.data["model"] = "gpt.3"
         with self.assertRaises(OpenaiApiError) as context:
-            await ChatCompletion.create(self.header, self.data)
+            await self.completion.create(self.header, self.data)
         self.assertIn("model", context.exception.message)
 
     async def test_stream(self):
         self.data["stream"] = True
-        async for data in ChatStreamCompletion.create(self.header, self.data):
+        async for data in self.stream.create(self.header, self.data):
             self.assertIn("choices", data)
 
     async def test_stream_invalid_api_key(self):
         self.data["stream"] = True
         self.header["Authorization"] = f"Beare abcd"
         with self.assertRaises(OpenaiApiError) as context:
-            async for data in ChatStreamCompletion.create(self.header, self.data):
+            async for data in self.stream.create(self.header, self.data):
                 self.assertIn("choices", data)
         self.assertIn("API key", context.exception.message)
 
@@ -218,7 +218,7 @@ class ChatCompletionTest(unittest.IsolatedAsyncioTestCase):
         self.data["stream"] = True
         self.data["model"] = "gpt.3"
         with self.assertRaises(OpenaiApiError) as context:
-            async for data in ChatStreamCompletion.create(self.header, self.data):
+            async for data in self.stream.create(self.header, self.data):
                 self.assertIn("choices", data)
         self.assertIn("model", context.exception.message)
 

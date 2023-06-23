@@ -14,7 +14,6 @@ class OpenaiApiError(Exception):
 
 
 class Chat:
-    @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> dict[str, str] | AsyncIterator[dict[str, str]]:
@@ -22,11 +21,10 @@ class Chat:
 
 
 class ChatCompletion(Chat):
-    @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> dict[str, str]:
-        async with httpx.AsyncClient(timeout=10) as session:
+        async with httpx.AsyncClient(timeout=None) as session:
             response = await session.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers=header,
@@ -39,12 +37,11 @@ class ChatCompletion(Chat):
 
 
 class ChatStreamCompletion(Chat):
-    @classmethod
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> AsyncIterator[dict[str, str]]:
         data["stream"] = True
-        async with httpx.AsyncClient(timeout=10) as session:
+        async with httpx.AsyncClient(timeout=None) as session:
             async with session.stream(
                 "POST",
                 "https://api.openai.com/v1/chat/completions",
@@ -55,7 +52,6 @@ class ChatStreamCompletion(Chat):
                     for data in self.handle_chunk(chunk):
                         yield data
 
-    @classmethod
     def handle_chunk(self, chunk: str) -> list[dict[str, str]]:
         for data in chunk.split("\n\n"):
             if data.startswith("data: ") and data[6:] != "[DONE]":
