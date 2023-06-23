@@ -1,2 +1,3 @@
 from .GPT import *
-from .bot import *
+
+# from .bot import *

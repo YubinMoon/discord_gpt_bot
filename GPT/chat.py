@@ -2,19 +2,23 @@ import aiohttp
 import logging
 import json
 import httpx
+from typing import AsyncIterator
 from httpx._models import Response
 from .message import MessageBox
 from .setting import Setting
-from typing import AsyncIterator
+from .error import ChatAPIError
 
 logger = logging.getLogger(__name__)
 
 
-class ChatAPIError(Exception):
-    pass
+class ChatInterface:
+    async def request_chat(
+        self, messages: list[dict[str, str]] | MessageBox, setting: Setting
+    ) -> str:
+        raise NotImplementedError
 
 
-class Chat:
+class Chat(ChatInterface):
     def __init__(self, api_key: str):
         self.header = {
             "Content-Type": "application/json",
