@@ -7,7 +7,6 @@ import io
 from typing import AsyncIterator
 from .setting import Setting
 from .chat import Chat, ChatStream, ChatStreamFunction
-from .openai import 
 from .message import (
     BaseMessage,
     SystemMessage,
@@ -23,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 class Client:
-    def __init__(self, api_key: str, setting_file: str = "setting.json"):
-        self.setting = Setting(setting_file)
+    def __init__(self, api_key: str):
+        self.setting = Setting()
         self.api_key = api_key
         self.message_box = MessageBox()
         self.function_manager = FunctionManager()

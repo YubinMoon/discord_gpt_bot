@@ -3,8 +3,7 @@ import json
 
 
 class Setting:
-    def __init__(self, file_name: str = "setting.json"):
-        self.file_name = file_name
+    def __init__(self):
         self.setting_type = {
             "model": str,
             "system_text": str,
@@ -21,27 +20,19 @@ class Setting:
             "top_p": 1.0,
             "keep_min": 10,
         }
-        # self.load_from_json() # TODO database 화 하기
+        self.setting_enum = {
+            "model": [
+                "gpt-3.5-turbo",
+                "gpt-3.5-turbo-16k",
+                "gpt-3.5-turbo-0613",
+                "gpt-3.5-turbo-16k-0613",
+                "gpt-4",
+                "gpt-4-0613",
+                "gpt-4-32k",
+                "gpt-4-32k-0613	",
+            ]
+        }
         self.sync_setting()
-
-    def load_from_json(self) -> None:
-        if os.path.isfile(self.file_name):
-            loaded_settings = json.load(open(self.file_name, "r", encoding="utf-8"))
-            self.load_from_dict(loaded_settings)
-
-    def load_from_dict(self, settings: dict) -> None:
-        for key, value in self.setting_value.items():
-            self.setting_value[key] = settings.get(key, value)
-
-    def set_setting(self, key: str, value: str) -> None:
-        if key not in self.setting_value:
-            raise KeyError(f"'{key}'이라는 설정은 존재하지 않습니다.")
-        self.setting_value[key] = self.setting_type[key](value)
-        # self.save_to_json()
-        self.sync_setting()
-
-    def save_to_json(self) -> None:
-        json.dump(self.setting_value, open(self.file_name, "w", encoding="utf-8"))
 
     def sync_setting(self) -> None:
         self.model = self.setting_value["model"]
@@ -50,3 +41,11 @@ class Setting:
         self.temperature = self.setting_value["temperature"]
         self.top_p = self.setting_value["top_p"]
         self.keep_min = self.setting_value["keep_min"]
+
+    def set_setting(self, key: str, value: str) -> None:
+        if key not in self.setting_value:
+            raise KeyError(f"'{key}'이라는 설정은 존재하지 않습니다.")
+        if key in self.setting_enum and value not in self.setting_enum[key]:
+            raise ValueError(f"'{key}'의 값은 {self.setting_enum[key]} 중 하나여야 합니다.")
+        self.setting_value[key] = self.setting_type[key](value)
+        self.sync_setting()
