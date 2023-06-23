@@ -15,16 +15,16 @@ from .message import (
     FunctionMessage,
     MessageBox,
 )
+from .container import Container
 from .function import FunctionManager, TestFunction, ScheduleFunction
-from .token import Tokener
 
 logger = logging.getLogger(__name__)
 
 
 class Client:
-    def __init__(self, api_key: str):
+    def __init__(self, container: Container):
+        self.container = container
         self.setting = Setting()
-        self.api_key = api_key
         self.message_box = MessageBox()
         self.function_manager = FunctionManager()
         self.lastRequestTime = time.time()
@@ -41,7 +41,7 @@ class Client:
         self.is_timeout()
         self.message_box.add_message(UserMessage(content=_message))
         messages = self.message_box.make_messages(setting=self.setting)
-        chat_api = ChatStream(api_key=self.api_key)
+        chat_api = self.container.get_gpt_chat("stream")
         logger.info(f"message: {messages}")
 
         collected_messages = AssistanceMessage()
@@ -57,9 +57,8 @@ class Client:
         self.is_timeout()
         self.message_box.add_message(UserMessage(content=_message))
         function_data = self.function_manager.make_dict()
-        chat_api = ChatStreamFunction(api_key=self.api_key)
+        chat_api = self.container.get_gpt_chat("stream_function")
         call_functions = []
-
         while True:
             collected_messages = AssistanceMessage()
             messages = self.message_box.make_messages(setting=self.setting)
@@ -85,7 +84,7 @@ class Client:
             messages.append(SystemMessage(content=system))
         messages.append(UserMessage(content=message))
         messages = [message.make_message() for message in messages]
-        chat_api = Chat(api_key=self.api_key)
+        chat_api = self.container.get_gpt_chat("completion")
         logger.info(f"message: {messages}")
 
         result = await chat_api.run(messages, self.setting)
@@ -93,40 +92,41 @@ class Client:
         logger.info(f"request: {result}")
         return result
 
-    async def create_image(self, prompt: str):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
-        data = {
-            "prompt": prompt,
-            "n": 1,
-            "size": "1024x1024",
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.openai.com/v1/images/generations",
-                headers=headers,
-                json=data,
-            ) as resp:
-                if resp.status != 200:
-                    logger.error(resp)
-                    raise Exception("API 요청 에러")
-                result = await resp.json()
-                logger.info(result)
-                url = result["data"][0]["url"]
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.read()
-                    with open(
-                        f"./img/{datetime.datetime.now().strftime('%m%d%H%M%S')}.png",
-                        "wb",
-                    ) as f:
-                        f.write(data)
-                    image_data = io.BytesIO(data)
-                    return image_data
-                else:
-                    raise Exception("이미지 다운 에러")
+    # TODO image 생성
+    # async def create_image(self, prompt: str):
+    #     headers = {
+    #         "Content-Type": "application/json",
+    #         "Authorization": f"Bearer {self.api_key}",
+    #     }
+    #     data = {
+    #         "prompt": prompt,
+    #         "n": 1,
+    #         "size": "1024x1024",
+    #     }
+    #     async with aiohttp.ClientSession() as session:
+    #         async with session.post(
+    #             "https://api.openai.com/v1/images/generations",
+    #             headers=headers,
+    #             json=data,
+    #         ) as resp:
+    #             if resp.status != 200:
+    #                 logger.error(resp)
+    #                 raise Exception("API 요청 에러")
+    #             result = await resp.json()
+    #             logger.info(result)
+    #             url = result["data"][0]["url"]
+    #         async with session.get(url) as response:
+    #             if response.status == 200:
+    #                 data = await response.read()
+    #                 with open(
+    #                     f"./img/{datetime.datetime.now().strftime('%m%d%H%M%S')}.png",
+    #                     "wb",
+    #                 ) as f:
+    #                     f.write(data)
+    #                 image_data = io.BytesIO(data)
+    #                 return image_data
+    #             else:
+    #                 raise Exception("이미지 다운 에러")
 
     def clear_history(self):
         logger.info("history cleared")

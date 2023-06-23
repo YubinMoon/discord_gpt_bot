@@ -4,6 +4,7 @@ from GPT.openai import ChatCompletion, ChatStreamCompletion
 from GPT.error import OpenaiApiError
 from dotenv import load_dotenv
 from typing import AsyncIterator
+import pprint
 
 load_dotenv()
 
@@ -93,9 +94,14 @@ class ChatCompletionTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_stream_function(self):
         self.data["stream"] = True
+        self.data["messages"][1]["content"] = "오늘 서울 날씨 어때?"
         self.data["functions"] = make_dummy_function()
+        result = []
+        pprint.pprint(self.data)
         async for data in self.stream.create(self.header, self.data):
+            result.append(data)
             self.assertIn("choices", data)
+        pprint.pprint(result)
 
 
 if __name__ == "__main__":

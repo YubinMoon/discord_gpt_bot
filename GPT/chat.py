@@ -20,7 +20,10 @@ class Chat:
         }
 
     async def run(
-        self, messages: list[dict[str, str]] | MessageBox, setting: Setting
+        self,
+        messages: list[dict[str, str]] | MessageBox,
+        setting: Setting,
+        function: list = None,
     ) -> str:
         self.data = self.make_data(messages=messages, setting=setting)
         resp = await self.openai_api.create(header=self.header, data=self.data)
@@ -42,7 +45,9 @@ class ChatStream(Chat):
         super().__init__(api_key=api_key, openai_api=openai_api)
 
     async def run(
-        self, messages: list[dict[str, str]], setting: Setting
+        self,
+        messages: list[dict[str, str]],
+        setting: Setting,
     ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
         self.data = self.make_data(messages=messages, setting=setting)
         async for data in self.openai_api.create(header=self.header, data=self.data):
@@ -59,7 +64,10 @@ class ChatStreamFunction(ChatStream):
         super().__init__(api_key=api_key, openai_api=openai_api)
 
     async def run(
-        self, messages: list[dict[str, str]], function: list, setting: Setting
+        self,
+        messages: list[dict[str, str]],
+        setting: Setting,
+        function: list,
     ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
         self.function = function
         async for message in super().run(messages=messages, setting=setting):
