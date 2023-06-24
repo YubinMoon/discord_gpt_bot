@@ -17,12 +17,19 @@ class ClientTest(unittest.IsolatedAsyncioTestCase):
     async def test_stream_chat(self):
         message = AssistanceMessage()
         async for msg in self.client.get_stream_chat("안녕?"):
-            message += msg
-            print(message)
+            message = msg
+        self.assertEqual("Hi there! How can I assist you today?", message.content)
+        self.assertEqual("stop", message.finish_reason)
+
+    async def test_stream_chat_no_message(self):
+        message = AssistanceMessage()
+        async for msg in self.client.get_stream_chat(""):
+            message = msg
+        self.assertEqual("Hi there! How can I assist you today?", message.content)
+        self.assertEqual("stop", message.finish_reason)
 
     # async def test_short_chat(self):
-    #     chat = gpt.GPT(api_key=self.api_key)
-    #     result = await chat.short_chat("안녕?", "당신은 친절한 AI 입니다.")
+    #     result = await self.client.short_chat("안녕?", "당신은 친절한 AI 입니다.")
     #     self.assertGreater(len(result), 0)
 
 

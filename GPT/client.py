@@ -23,13 +23,11 @@ logger = logging.getLogger(__name__)
 
 class Client(BaseClient):
     def __init__(self, container: BaseContainer):
-        self.container = container
+        super().__init__(container)
         self.setting = Setting()
         self.message_box = MessageBox()
         self.function_manager = FunctionManager()
-        self.lastRequestTime = time.time()
-        if not os.path.isdir("./img"):
-            os.mkdir("img")
+        self.last_request_time = time.time()
         self.clear_history()
         self.set_function()
 
@@ -133,6 +131,6 @@ class Client(BaseClient):
         self.message_box.clear()
 
     def is_timeout(self):
-        if time.time() - self.lastRequestTime > self.setting.keep_min * 60:
+        if time.time() - self.last_request_time > self.setting.keep_min * 60:
             self.clear_history()
-        self.lastRequestTime = time.time()
+        self.last_request_time = time.time()

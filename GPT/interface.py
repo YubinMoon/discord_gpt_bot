@@ -1,5 +1,7 @@
 from __future__ import annotations
 import copy
+import os
+import io
 from typing import AsyncIterator
 from .setting import Setting
 
@@ -41,7 +43,22 @@ class BaseChat:
 
 
 class BaseClient:
-    pass
+    def __init__(self, container: BaseContainer):
+        self.container = container
+        if not os.path.isdir("./img"):
+            os.mkdir("img")
+
+    async def get_stream_chat(self, _message: str) -> AsyncIterator[BaseMessage]:
+        raise NotImplementedError
+
+    async def get_stream_chat_with_function(self, _message: str) -> AsyncIterator[str]:
+        raise NotImplementedError
+
+    async def short_chat(self, message: str, system: str | None = None) -> str:
+        raise NotImplementedError
+
+    async def create_image(self, prompt: str) -> io.BytesIO:
+        raise NotImplementedError
 
 
 class BaseContainer:
