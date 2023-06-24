@@ -3,9 +3,10 @@ from GPT.chat import Chat, ChatStream, ChatStreamFunction
 from GPT.error import OpenaiApiError
 from dotenv import load_dotenv
 from typing import AsyncIterator
+from GPT.client import Client
 
 load_dotenv()
-from GPT.container import Container
+from GPT.container import GPTContainer
 
 
 class StaticChatCompletion(ChatCompletion):
@@ -189,9 +190,17 @@ class StaticChatStreamCompletion(ChatStreamCompletion):
             }
 
 
-class TestContainer(Container):
+class TestContainer(GPTContainer):
     def __init__(self, api_key):
         self.api_key = api_key
+        self.Client_container = {}
+
+    def get_gpt_client(self, key: int | str) -> Client:
+        if key in self.Client_container:
+            return self.Client_container[key]
+        else:
+            self.Client_container[key] = Client(self)
+            return self.Client_container[key]
 
     def get_gpt_chat(self, type: str) -> Chat:
         if type == "completion":

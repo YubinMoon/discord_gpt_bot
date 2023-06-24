@@ -96,12 +96,9 @@ class ChatCompletionTest(unittest.IsolatedAsyncioTestCase):
         self.data["stream"] = True
         self.data["messages"][1]["content"] = "오늘 서울 날씨 어때?"
         self.data["functions"] = make_dummy_function()
-        result = []
         pprint.pprint(self.data)
         async for data in self.stream.create(self.header, self.data):
-            result.append(data)
             self.assertIn("choices", data)
-        pprint.pprint(result)
 
 
 if __name__ == "__main__":

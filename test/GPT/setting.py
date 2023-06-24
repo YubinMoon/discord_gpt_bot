@@ -2,8 +2,6 @@ import os
 import unittest
 from GPT import chat
 from GPT import setting
-from GPT import gpt
-from GPT import gptbox
 from GPT import message
 from dotenv import load_dotenv
 

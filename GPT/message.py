@@ -4,27 +4,9 @@ import copy
 from typing import Any
 from .token import Tokener
 from .setting import Setting
+from .interface import BaseMessage
 
 logger = logging.getLogger(__name__)
-
-
-class BaseMessage:
-    def __init__(self, content: str):
-        self.role: str = ""
-        self.content: str = content if content else ""
-
-    def make_message(self) -> dict[str, str]:
-        return {"role": self.role, "content": self.content}
-
-    def __str__(self) -> str:
-        return (
-            f"< {self.__class__.__name__} role: {self.role}, content: {self.content} >"
-        )
-
-    def __add__(self, other: BaseMessage) -> BaseMessage:
-        temp = copy.deepcopy(self)
-        temp.content += other.content
-        return temp
 
 
 class SystemMessage(BaseMessage):

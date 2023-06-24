@@ -10,7 +10,7 @@ from GPT.openai import ChatCompletion, ChatStreamCompletion
 from GPT.error import OpenaiApiError
 from dotenv import load_dotenv
 from typing import AsyncIterator
-from .container import TestContainer
+from .mock import TestContainer
 
 load_dotenv()
 

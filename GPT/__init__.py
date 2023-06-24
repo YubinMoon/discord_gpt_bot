@@ -1,2 +1,1 @@
-from .gpt import GPT
-from .gptbox import GPTBox
+from .client import Client

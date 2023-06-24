@@ -1,18 +1,11 @@
 import json
 import httpx
-import asyncio
 from typing import AsyncIterator
 from .error import OpenaiApiError
+from .interface import BaseOpenaiApi
 
 
-class Chat:
-    async def create(
-        self, header: dict[str, str], data: dict[str, str]
-    ) -> dict[str, str] | AsyncIterator[dict[str, str]]:
-        raise NotImplementedError
-
-
-class ChatCompletion(Chat):
+class ChatCompletion(BaseOpenaiApi):
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> dict[str, str]:
@@ -28,7 +21,7 @@ class ChatCompletion(Chat):
         return response_json
 
 
-class ChatStreamCompletion(Chat):
+class ChatStreamCompletion(BaseOpenaiApi):
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> AsyncIterator[dict[str, str]]:

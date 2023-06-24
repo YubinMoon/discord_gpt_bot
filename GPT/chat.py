@@ -7,12 +7,13 @@ from httpx._models import Response
 from .message import MessageBox
 from .setting import Setting
 from . import openai
+from .interface import BaseChat
 
 logger = logging.getLogger(__name__)
 
 
-class Chat:
-    def __init__(self, api_key: str, openai_api: openai.Chat):
+class Chat(BaseChat):
+    def __init__(self, api_key: str, openai_api: openai.BaseOpenaiApi):
         self.openai_api = openai_api
         self.header = {
             "Content-Type": "application/json",
@@ -41,7 +42,7 @@ class Chat:
 
 
 class ChatStream(Chat):
-    def __init__(self, api_key: str, openai_api: openai.Chat):
+    def __init__(self, api_key: str, openai_api: openai.BaseOpenaiApi):
         super().__init__(api_key=api_key, openai_api=openai_api)
 
     async def run(
@@ -60,7 +61,7 @@ class ChatStream(Chat):
 
 
 class ChatStreamFunction(ChatStream):
-    def __init__(self, api_key: str, openai_api: openai.Chat):
+    def __init__(self, api_key: str, openai_api: openai.BaseOpenaiApi):
         super().__init__(api_key=api_key, openai_api=openai_api)
 
     async def run(

@@ -1,18 +1,20 @@
 from .chat import Chat, ChatStream, ChatStreamFunction
 from .openai import ChatCompletion, ChatStreamCompletion
+from .client import Client
+from .interface import BaseContainer
 
 
-class Container:
+class GPTContainer(BaseContainer):
     def __init__(self, api_key):
         self.api_key = api_key
+        self.Client_container = {}
 
-    def get_gpt_chat(self, type: str) -> Chat:
-        raise NotImplementedError
-
-
-class GPTContainer(Container):
-    def __init__(self, api_key):
-        self.api_key = api_key
+    def get_gpt_client(self, key: int | str) -> Client:
+        if key in self.Client_container:
+            return self.Client_container[key]
+        else:
+            self.Client_container[key] = Client(self)
+            return self.Client_container[key]
 
     def get_gpt_chat(self, type: str) -> Chat:
         if type == "completion":
@@ -28,3 +30,6 @@ class GPTContainer(Container):
             raise ValueError(
                 "Invalid type. Valid types are: completion, stream, stream_function"
             )
+
+    def __str__(self) -> str:
+        return f"< ClientBox : {self.Client_container.keys()} >"

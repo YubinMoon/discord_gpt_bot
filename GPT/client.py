@@ -15,14 +15,14 @@ from .message import (
     FunctionMessage,
     MessageBox,
 )
-from .container import Container
 from .function import FunctionManager, TestFunction, ScheduleFunction
+from .interface import BaseClient, BaseContainer
 
 logger = logging.getLogger(__name__)
 
 
-class Client:
-    def __init__(self, container: Container):
+class Client(BaseClient):
+    def __init__(self, container: BaseContainer):
         self.container = container
         self.setting = Setting()
         self.message_box = MessageBox()
