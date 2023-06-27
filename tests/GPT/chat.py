@@ -1,6 +1,5 @@
 import os
 import unittest
-from GPT import chat
 from GPT.message import (
     MessageBox,
     UserMessage,

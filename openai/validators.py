@@ -173,7 +173,6 @@ def long_examples_validator(df):
             optional_msg = f"Remove {len(long_indexes)} long examples"
 
             def optional_fn(x):
-
                 long_indexes_to_drop = get_long_indexes(x)
                 if long_indexes != long_indexes_to_drop:
                     sys.stdout.write(

@@ -90,7 +90,7 @@ def test_timeout_does_not_error():
 
 
 def test_user_session():
-     with requests.Session() as session:
+    with requests.Session() as session:
         openai.requestssession = session
 
         completion = openai.Completion.create(

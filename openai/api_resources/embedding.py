@@ -36,7 +36,6 @@ class Embedding(EngineAPIResource):
                 # This is only for the default case.
                 if not user_provided_encoding_format:
                     for data in response.data:
-
                         # If an engine isn't using this optimization, don't do anything
                         if type(data["embedding"]) == str:
                             assert_has_numpy()
@@ -76,7 +75,6 @@ class Embedding(EngineAPIResource):
                 # This is only for the default case.
                 if not user_provided_encoding_format:
                     for data in response.data:
-
                         # If an engine isn't using this optimization, don't do anything
                         if type(data["embedding"]) == str:
                             data["embedding"] = np.frombuffer(

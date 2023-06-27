@@ -104,7 +104,7 @@ def parse_stream_helper(line: bytes) -> Optional[str]:
             # and it will close http connection with TCP Reset
             return None
         if line.startswith(b"data: "):
-            line = line[len(b"data: "):]
+            line = line[len(b"data: ") :]
             return line.decode("utf-8")
         else:
             return None
@@ -153,12 +153,14 @@ class APIRequestor:
             str += " (%s)" % (info["url"],)
         return str
 
-    def _check_polling_response(self, response: OpenAIResponse, predicate: Callable[[OpenAIResponse], bool]):
+    def _check_polling_response(
+        self, response: OpenAIResponse, predicate: Callable[[OpenAIResponse], bool]
+    ):
         if not predicate(response):
             return
-        error_data = response.data['error']
-        message = error_data.get('message', 'Operation failed')
-        code = error_data.get('code')
+        error_data = response.data["error"]
+        message = error_data.get("message", "Operation failed")
+        code = error_data.get("code")
         raise error.OpenAIError(message=message, code=code)
 
     def _poll(
@@ -167,10 +169,10 @@ class APIRequestor:
         url,
         until,
         failed,
-        params = None,
-        headers = None,
-        interval = None,
-        delay = None
+        params=None,
+        headers=None,
+        interval=None,
+        delay=None,
     ) -> Tuple[Iterator[OpenAIResponse], bool, str]:
         if delay:
             time.sleep(delay)
@@ -186,7 +188,7 @@ class APIRequestor:
             response, b, api_key = self.request(method, url, params, headers)
             self._check_polling_response(response, failed)
 
-        response.data = response.data['result']
+        response.data = response.data["result"]
         return response, b, api_key
 
     async def _apoll(
@@ -195,10 +197,10 @@ class APIRequestor:
         url,
         until,
         failed,
-        params = None,
-        headers = None,
-        interval = None,
-        delay = None
+        params=None,
+        headers=None,
+        interval=None,
+        delay=None,
     ) -> Tuple[Iterator[OpenAIResponse], bool, str]:
         if delay:
             await asyncio.sleep(delay)
@@ -214,7 +216,7 @@ class APIRequestor:
             response, b, api_key = await self.arequest(method, url, params, headers)
             self._check_polling_response(response, failed)
 
-        response.data = response.data['result']
+        response.data = response.data["result"]
         return response, b, api_key
 
     @overload
@@ -747,7 +749,7 @@ class APIRequestor:
                 headers=rheaders,
             )
         try:
-            if 'text/plain' in rheaders.get('Content-Type', ''):
+            if "text/plain" in rheaders.get("Content-Type", ""):
                 data = rbody
             else:
                 data = json.loads(rbody)

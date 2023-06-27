@@ -41,6 +41,9 @@ class AssistanceMessage(BaseMessage):
             message["function_call"] = self.function_call
         return message
 
+    def add_content(self, content: str):
+        self.content += content
+
     def __str__(self) -> str:
         return f"< {self.__class__.__name__} role: {self.role}, content: {self.content}, function_call: {self.function_call} finish_reason: {self.finish_reason} >"
 

@@ -1,46 +1,80 @@
+import aiohttp
+import logging
 import json
-import httpx
 from typing import AsyncIterator
-from .error import OpenaiApiError
-from .interface import BaseOpenaiApi
+from .message import MessageBox
+from .setting import Setting
+from . import _openai
+from .interface import BaseChat
+
+logger = logging.getLogger(__name__)
 
 
-class ChatCompletion(BaseOpenaiApi):
-    async def create(
-        self, header: dict[str, str], data: dict[str, str]
-    ) -> dict[str, str]:
-        async with httpx.AsyncClient(timeout=None) as session:
-            response = await session.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=header,
-                json=data,
-            )
-        if response.status_code != 200:
-            raise OpenaiApiError(response.json())
-        response_json = response.json()
-        return response_json
+class Chat(BaseChat):
+    def __init__(self, api_key: str, openai_api: _openai.BaseOpenaiApi):
+        self.openai_api = openai_api
+        self.header = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+
+    async def run(
+        self,
+        messages: list[dict[str, str]] | MessageBox,
+        setting: Setting,
+        **kwargs,
+    ) -> str:
+        self.data = self.make_data(messages=messages, setting=setting)
+        resp = await self.openai_api.create(header=self.header, data=self.data)
+        return resp["choices"][0]["message"]["content"]
+
+    def make_data(self, messages: list[dict[str, str]] | MessageBox, setting: Setting):
+        if isinstance(messages, MessageBox):
+            messages = messages.make_messages(setting=setting)
+        return {
+            "model": setting.model,
+            "messages": messages,
+            "temperature": setting.temperature,
+            "top_p": setting.top_p,
+        }
 
 
-class ChatStreamCompletion(BaseOpenaiApi):
-    async def create(
-        self, header: dict[str, str], data: dict[str, str]
-    ) -> AsyncIterator[dict[str, str]]:
+class ChatStream(BaseChat):
+    def __init__(self, api_key: str, openai_api: _openai.BaseOpenaiApi):
+        super().__init__(api_key=api_key, openai_api=openai_api)
+
+    async def run(
+        self,
+        messages: list[dict[str, str]],
+        setting: Setting,
+        **kwargs,
+    ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
+        self.data = self.make_data(messages=messages, setting=setting)
+        async for data in self.openai_api.create(header=self.header, data=self.data):
+            yield data["choices"][0]
+
+    def make_data(self, messages: list[dict[str, str]], setting: Setting):
+        data = super().make_data(messages=messages, setting=setting)
         data["stream"] = True
-        async with httpx.AsyncClient(timeout=None) as session:
-            async with session.stream(
-                "POST",
-                "https://api.openai.com/v1/chat/completions",
-                headers=header,
-                json=data,
-            ) as response:
-                async for chunk in response.aiter_text():
-                    for data in self.handle_chunk(chunk):
-                        yield data
+        return data
 
-    def handle_chunk(self, chunk: str) -> list[dict[str, str]]:
-        for data in chunk.split("\n\n"):
-            if data.startswith("data: ") and data[6:] != "[DONE]":
-                yield json.loads(data[6:])
-            elif "error" in data:
-                data = json.loads(data)
-                raise OpenaiApiError(data)
+
+class ChatStreamFunction(BaseChat):
+    def __init__(self, api_key: str, openai_api: _openai.BaseOpenaiApi):
+        super().__init__(api_key=api_key, openai_api=openai_api)
+
+    async def run(
+        self,
+        messages: list[dict[str, str]],
+        setting: Setting,
+        function: list,
+    ) -> AsyncIterator[dict[str, str | dict[str, str]]]:
+        self.function = function
+        async for message in super().run(messages=messages, setting=setting):
+            yield message
+
+    def make_data(self, messages: list[dict[str, str]], setting: Setting):
+        data = super().make_data(messages=messages, setting=setting)
+        data["functions"] = self.function
+        data["function_call"] = "auto"
+        return data

@@ -5,8 +5,9 @@ import aiohttp
 import datetime
 import io
 from typing import AsyncIterator
+
+from GPT.error import OpenaiApiError
 from .setting import Setting
-from .chat import Chat, ChatStream, ChatStreamFunction
 from .message import (
     BaseMessage,
     SystemMessage,
@@ -16,7 +17,7 @@ from .message import (
     MessageBox,
 )
 from .function import FunctionManager, TestFunction, ScheduleFunction
-from .interface import BaseClient, BaseContainer
+from .interface import BaseClient, BaseContainer, BaseChat
 
 logger = logging.getLogger(__name__)
 
@@ -35,31 +36,51 @@ class Client(BaseClient):
         self.function_manager.add_function(TestFunction())
         self.function_manager.add_function(ScheduleFunction())
 
-    async def get_stream_chat(self, _message: str) -> AsyncIterator[AssistanceMessage]:
+    async def get_stream_chat(
+        self, _message: str, function: bool
+    ) -> AsyncIterator[str]:
         self.is_timeout()
         self.message_box.add_message(UserMessage(content=_message))
-        messages = self.message_box.make_messages(setting=self.setting)
-        chat_api = self.container.get_gpt_chat("stream")
-        logger.info(f"message: {messages}")
+        chat_type = "stream_function" if function else "stream"
+        chat_api = self.container.get_gpt_chat(chat_type)
+        try:
+            while True:
+                collected_messages = AssistanceMessage()
+                async for chat_data in self.get_stream_data(chat_api):
+                    collected_messages += chat_data
+                    yield chat_data.content
 
-        collected_messages = AssistanceMessage()
-        # async for data in self.get_chat_stream_data(messages):
-        async for data in chat_api.run(messages, setting=self.setting):
-            collected_messages += AssistanceMessage(data=data)
-            yield collected_messages
-
-        logger.info(f"request: {collected_messages}")
-        self.message_box.add_message(collected_messages)
+                if chat_data.finish_reason == AssistanceMessage.NULL:
+                    break
+                elif chat_data.finish_reason == AssistanceMessage.FUNCTION_CALL:
+                    yield f"\ncall function: {collected_messages.function_call}\n"
+                    function_message = await self.function_manager.run(
+                        collected_messages
+                    )
+                    self.message_box.add_message(function_message)
+                elif chat_data.finish_reason == AssistanceMessage.STOP:
+                    break
+                elif chat_data.finish_reason == AssistanceMessage.LENGHT:
+                    pass
+                elif chat_data.finish_reason == AssistanceMessage.CONTENT_FILTER:
+                    logger.warning("content filter")
+                    logger.warning(f"content: {collected_messages}")
+                    yield "\ncontent filter\n"
+                    break
+                else:
+                    break
+        except OpenaiApiError as e:
+            yield e.message
 
     async def get_stream_chat_with_function(self, _message: str) -> AsyncIterator[str]:
         self.is_timeout()
         self.message_box.add_message(UserMessage(content=_message))
-        function_data = self.function_manager.make_dict()
         chat_api = self.container.get_gpt_chat("stream_function")
         call_functions = []
+        function_data = self.function_manager.make_dict()
         while True:
-            collected_messages = AssistanceMessage()
             messages = self.message_box.make_messages(setting=self.setting)
+            collected_messages = AssistanceMessage()
             logger.info(f"message: {messages}")
             async for data in chat_api.run(
                 messages, function=function_data, setting=self.setting
@@ -76,6 +97,22 @@ class Client(BaseClient):
             self.message_box.add_message(function_message)
             collected_messages.content = function_message.name + "\n"
 
+    async def get_stream_data(
+        self, chat_api: BaseChat
+    ) -> AsyncIterator[AssistanceMessage]:
+        messages = self.message_box.make_messages(setting=self.setting)
+        function_data = self.function_manager.make_dict()
+        collected_messages = AssistanceMessage()
+        logger.info(f"message: {messages}")
+        async for data in chat_api.run(
+            messages, function=function_data, setting=self.setting
+        ):
+            temp_messages = AssistanceMessage(data=data)
+            yield temp_messages
+            collected_messages += temp_messages
+        logger.info(f"request: {collected_messages}")
+        self.message_box.add_message(collected_messages)
+
     async def short_chat(self, message: str, system: str | None = None) -> str:
         messages: list[BaseMessage] = []
         if system:
@@ -84,9 +121,7 @@ class Client(BaseClient):
         messages = [message.make_message() for message in messages]
         chat_api = self.container.get_gpt_chat("completion")
         logger.info(f"message: {messages}")
-
         result = await chat_api.run(messages, self.setting)
-
         logger.info(f"request: {result}")
         return result
 

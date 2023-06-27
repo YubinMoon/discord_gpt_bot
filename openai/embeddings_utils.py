@@ -15,25 +15,27 @@ from openai.datalib.pandas_helper import pandas as pd
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
-def get_embedding(text: str, engine="text-similarity-davinci-001", **kwargs) -> List[float]:
-
+def get_embedding(
+    text: str, engine="text-similarity-davinci-001", **kwargs
+) -> List[float]:
     # replace newlines, which can negatively affect performance.
     text = text.replace("\n", " ")
 
-    return openai.Embedding.create(input=[text], engine=engine, **kwargs)["data"][0]["embedding"]
+    return openai.Embedding.create(input=[text], engine=engine, **kwargs)["data"][0][
+        "embedding"
+    ]
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 async def aget_embedding(
     text: str, engine="text-similarity-davinci-001", **kwargs
 ) -> List[float]:
-
     # replace newlines, which can negatively affect performance.
     text = text.replace("\n", " ")
 
-    return (await openai.Embedding.acreate(input=[text], engine=engine, **kwargs))["data"][0][
-        "embedding"
-    ]
+    return (await openai.Embedding.acreate(input=[text], engine=engine, **kwargs))[
+        "data"
+    ][0]["embedding"]
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
@@ -58,7 +60,9 @@ async def aget_embeddings(
     # replace newlines, which can negatively affect performance.
     list_of_text = [text.replace("\n", " ") for text in list_of_text]
 
-    data = (await openai.Embedding.acreate(input=list_of_text, engine=engine, **kwargs)).data
+    data = (
+        await openai.Embedding.acreate(input=list_of_text, engine=engine, **kwargs)
+    ).data
     return [d["embedding"] for d in data]
 
 
