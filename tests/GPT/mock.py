@@ -1,3 +1,4 @@
+import asyncio
 from GPT.openai import ChatCompletion, ChatStreamCompletion
 from GPT.chat import Chat, ChatStream, ChatStreamFunction
 from GPT.error import OpenaiApiError
@@ -54,6 +55,7 @@ class RaiseChatCompletion(ChatCompletion):
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> dict[str, str]:
+        yield ""
         raise OpenaiApiError(
             {
                 "error": {
@@ -177,6 +179,13 @@ class RaiseChatStreamCompletion(ChatStreamCompletion):
     async def create(
         self, header: dict[str, str], data: dict[str, str]
     ) -> AsyncIterator[dict[str, str]]:
+        yield {
+            "id": "chatcmpl-7UaJHztG5CcWva1jVAUcNHS7Wu3ez",
+            "object": "chat.completion.chunk",
+            "created": 1687523771,
+            "model": "gpt-3.5-turbo-0301",
+            "choices": [{"delta": {}, "finish_reason": "function_call", "index": 0}],
+        }
         raise OpenaiApiError(
             {
                 "error": {
